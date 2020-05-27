@@ -16,6 +16,7 @@ public class SynchronizeLayerDataJob extends fi.nls.oskari.worker.ScheduledJob {
     @Override
     public void execute(Map<String, Object> params) {
         LOG.info("Synchronizing CKAN layers. The time is " + new Date());
-        SynchronizeDatabase.synchronizeLayersFromCKAN();
+        SynchronizeDatabase syncDb = new SynchronizeDatabase();
+        syncDb.synchronizeLayersFromCKAN();
     }
 }

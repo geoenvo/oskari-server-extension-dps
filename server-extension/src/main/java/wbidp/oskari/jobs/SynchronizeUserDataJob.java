@@ -16,7 +16,8 @@ public class SynchronizeUserDataJob extends fi.nls.oskari.worker.ScheduledJob {
     @Override
     public void execute(Map<String, Object> params) {
         LOG.info("Synchronizing CKAN users and user groups. The time is " + new Date());
-        SynchronizeDatabase.synchronizeGroupsFromCKAN();
-        SynchronizeDatabase.synchronizeUsersFromCKAN();
+        SynchronizeDatabase syncDb = new SynchronizeDatabase();
+        syncDb.synchronizeUsersFromCKAN();
+        syncDb.synchronizeGroupsFromCKAN();
     }
 }

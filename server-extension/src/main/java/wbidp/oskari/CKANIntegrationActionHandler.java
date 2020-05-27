@@ -28,8 +28,9 @@ public class CKANIntegrationActionHandler extends RestActionHandler {
     @Override
     public void handlePost(ActionParameters params) throws ActionException {
         if (params.getUser() != null && params.getUser().isAdmin()) {
-            SynchronizeDatabase.synchronizeGroupsFromCKAN();
-            SynchronizeDatabase.synchronizeUsersFromCKAN();
+            SynchronizeDatabase syncDb = new SynchronizeDatabase();
+            syncDb.synchronizeUsersFromCKAN();
+            syncDb.synchronizeGroupsFromCKAN();
         } else {
             ResponseHelper.writeResponse(params, params.getUser() + " cannot access CKAN synchronizer.");
         }
