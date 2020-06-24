@@ -36,7 +36,7 @@ public class SynchronizeDatabase {
     }
 
     public void synchronizeGroupsFromCKAN() {
-        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.url", "ckan.integration.db.url");
+        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.username", "ckan.integration.db.password");
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
 
         if (ckanConnection == null || oskariConnection == null) {
@@ -55,7 +55,7 @@ public class SynchronizeDatabase {
     }
 
     public void synchronizeUsersFromCKAN() {
-        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.url", "ckan.integration.db.url");
+        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.username", "ckan.integration.db.password");
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
 
         if (ckanConnection == null || oskariConnection == null) {
@@ -74,7 +74,7 @@ public class SynchronizeDatabase {
     }
 
     public void synchronizeLayersFromCKAN() {
-        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.url", "ckan.integration.db.url");
+        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.username", "ckan.integration.db.password");
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
 
         if (ckanConnection == null || oskariConnection == null) {
