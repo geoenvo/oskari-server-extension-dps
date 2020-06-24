@@ -100,13 +100,14 @@ public class SynchronizeDatabase {
     }
 
     private void truncateData(Connection connection, String tableName) throws SQLException {
-        String sql = "TRUNCATE TABLE ? CASCADE;";
+        /*String sql = "TRUNCATE TABLE ? CASCADE;";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, tableName);
 
             LOG.debug("Executing:", ps.toString());
             int i = ps.executeUpdate();
             LOG.debug("Truncate result:", i);
-        }
+        }*/
+        LOG.info("Executing truncate.. (not for real yet!)");
     }
 }
