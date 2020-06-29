@@ -16,7 +16,7 @@ public class CKANDataParser {
      * @param JSONFromCKAN user data from CKAN as JSON.
      * @return an ArrayList of Oskari User objects.
      */
-    public ArrayList<User> parseJSONToUsers(String JSONFromCKAN) {
+    public static ArrayList<User> parseJSONToUsers(String JSONFromCKAN) {
         ArrayList<User> users = new ArrayList<>();
         LOG.info("Parsing CKAN JSON data.");
 
