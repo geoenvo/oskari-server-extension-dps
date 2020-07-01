@@ -49,8 +49,7 @@ public class CKANPasswordHandler {
      * @return              a salted PBKDF2 hash of the password
      */
     public static String createHash(String password)
-        throws NoSuchAlgorithmException, InvalidKeySpecException
-    {
+        throws NoSuchAlgorithmException, InvalidKeySpecException {
         return createHash(password.toCharArray());
     }
 
@@ -61,8 +60,7 @@ public class CKANPasswordHandler {
      * @return              a salted PBKDF2 hash of the password in CKAN format
      */
     public static String createHash(char[] password)
-        throws NoSuchAlgorithmException, InvalidKeySpecException
-    {
+        throws NoSuchAlgorithmException, InvalidKeySpecException {
         // Generate a random salt
         SecureRandom random = new SecureRandom();
         byte[] salt = new byte[SALT_BYTES];
@@ -82,8 +80,7 @@ public class CKANPasswordHandler {
      * @return              true if the password is correct, false if not
      */
     public static boolean validatePassword(String password, String CKANHash)
-        throws NoSuchAlgorithmException, InvalidKeySpecException
-    {
+        throws NoSuchAlgorithmException, InvalidKeySpecException {
         return validatePassword(password.toCharArray(), CKANHash);
     }
 
@@ -95,17 +92,19 @@ public class CKANPasswordHandler {
      * @return              true if the password is correct, false if not
      */
     public static boolean validatePassword(char[] password, String CKANHash)
-        throws NoSuchAlgorithmException, InvalidKeySpecException
-    {
+        throws NoSuchAlgorithmException, InvalidKeySpecException {
         // Decode the hash into its parameters
         String[] params = CKANHash.split("\\$");
         int iterations = Integer.parseInt(params[ITERATION_INDEX]);
         byte[] salt = fromBase64(params[SALT_INDEX]);
-        byte[] hash = fromBase64(params[PBKDF2_INDEX].replace(".", "+"));
+        byte[] hash = fromBase64(params[PBKDF2_INDEX]);
+        
         // Compute the hash of the provided password, using the same salt, 
         // iteration count, and hash length
         byte[] testHash = pbkdf2(password, salt, iterations, hash.length);
+        
         LOG.debug("RESULT: " + "$pbkdf2-sha512$" + PBKDF2_ITERATIONS + "$" + toBase64(salt) + "$" +  toBase64(testHash));
+        
         // Compare the hashes in constant time. The password is correct if
         // both hashes match.
         return slowEquals(hash, testHash);
@@ -120,8 +119,7 @@ public class CKANPasswordHandler {
      * @param   b       the second byte array 
      * @return          true if both byte arrays are the same, false if not
      */
-    private static boolean slowEquals(byte[] a, byte[] b)
-    {
+    private static boolean slowEquals(byte[] a, byte[] b) {
         int diff = a.length ^ b.length;
         for(int i = 0; i < a.length && i < b.length; i++)
             diff |= a[i] ^ b[i];
@@ -138,8 +136,7 @@ public class CKANPasswordHandler {
      * @return              the PBDKF2 hash of the password
      */
     private static byte[] pbkdf2(char[] password, byte[] salt, int iterations, int bytes)
-        throws NoSuchAlgorithmException, InvalidKeySpecException
-    {
+        throws NoSuchAlgorithmException, InvalidKeySpecException {
         PBEKeySpec spec = new PBEKeySpec(password, salt, iterations, bytes * 8);
         SecretKeyFactory skf = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM);
         return skf.generateSecret(spec).getEncoded();
@@ -147,26 +144,33 @@ public class CKANPasswordHandler {
 
     /**
      * Converts a string of Base64 characters into a byte array.
+     * Decodes from shortened base64 format which omits padding & whitespace.
+     * Uses custom ``./`` altchars, but supports decoding normal ``+/`` altchars as well.
+     * 
+     * It is primarily used by Passlib's custom pbkdf2 hashes (used by CKAN).
      *
      * @param   base64      the base64 string
      * @return              the base64 string decoded into a byte array
      */
-    private static byte[] fromBase64(String base64)
-    {
+    private static byte[] fromBase64(String base64) {
         byte[] decodedStringBytes = null;
-        decodedStringBytes = Base64.decodeBase64(base64);
+        decodedStringBytes = Base64.decodeBase64(base64.replace(".", "+"));
         return decodedStringBytes;
     }
 
     /**
      * Converts a byte array into a Base64 string.
+     * Encodes using shortened base64 format which omits padding & whitespace.
+     * Uses custom ``./`` altchars.
+     * 
+     * It is primarily used by Passlib's custom pbkdf2 hashes (used by CKAN).
      *
      * @param   array       the byte array to convert
-     * @return              a length*2 character string encoding the byte array
+     * @return              a string encoding the byte array
      */
-    private static String toBase64(byte[] array)
-    {
+    private static String toBase64(byte[] array) {
         String encodedString = Base64.encodeBase64String(array);
+        encodedString.replaceAll("=", "").replace("+", ".").replaceAll("\\s", "");
         return encodedString;
     }
 }
