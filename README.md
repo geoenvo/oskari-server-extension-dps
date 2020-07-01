@@ -38,7 +38,7 @@ To automate the process of transferring data between CKAN and Oskari (users, gro
 
 ## Settings related to Download Basket
 
-To enable Donwload Basket functionality you need to add e.g. these settings to **oskari-ext.properties**:
+To enable Download Basket functionality you need to add e.g. these settings to **oskari-ext.properties**:
 
     ##################################
     # Download bundle
@@ -62,6 +62,23 @@ To enable Donwload Basket functionality you need to add e.g. these settings to *
     oskari.wfs.error.message=Error in download service service, please try again later.
     oskari.wfs.download.error.report.support.email=wbidp@wbidp.com
     oskari.wfs.download.error.report.subject=Error in download service
+
+## Settings related to Content Editor
+
+To enable Content Editor functionality you need to add e.g. these settings to **oskari-ext.properties**:
+
+    ##################################
+    # Content editor bundle
+    ##################################
+
+    permission.types = EDIT_LAYER_CONTENT
+    permission.EDIT_LAYER_CONTENT.name.en=Edit layer
+
+Also, you need to add the bundle to the dynamic bundles list and modify permissions e.g.
+
+    # bundles that are added on runtime to view if user has one of configured role
+    actionhandler.GetAppSetup.dynamic.bundles = admin-hierarchical-layerlist, admin-layereditor, admin-layerselector, admin-layerrights, admin-users, admin
+    actionhandler.GetAppSetup.dynamic.bundle.content-editor.roles = Admin
 
 ## License
 
