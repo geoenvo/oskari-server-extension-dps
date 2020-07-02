@@ -13,7 +13,7 @@ import fi.nls.oskari.log.Logger;
 /**
  * Provides tools for handling CKAN passwords in Oskari.
  * The methods contained in this class can be used to interpret CKAN's
- * hashed passwords and to also create similar password hashes.
+ * hashed passwords and also to create similar password hashes.
  * 
  * All functionality is based on the way CKAN stores the passwords for user
  * accounts by using the PassLib-library in Python.
@@ -150,7 +150,7 @@ public class CKANPasswordHandler {
      * It is primarily used by Passlib's custom pbkdf2 hashes (used by CKAN).
      *
      * @param   base64      the base64 string
-     * @return              the base64 string decoded into a byte array
+     * @return              the base64 shortened string with altchars decoded into a byte array
      */
     private static byte[] fromBase64(String base64) {
         byte[] decodedStringBytes = null;
@@ -166,11 +166,11 @@ public class CKANPasswordHandler {
      * It is primarily used by Passlib's custom pbkdf2 hashes (used by CKAN).
      *
      * @param   array       the byte array to convert
-     * @return              a string encoding the byte array
+     * @return              a shortened string with altchars encoding the byte array
      */
     private static String toBase64(byte[] array) {
         String encodedString = Base64.encodeBase64String(array);
-        encodedString.replaceAll("=", "").replace("+", ".").replaceAll("\\s", "");
+        encodedString = encodedString.replace("=", "").replace("+", ".").replaceAll("\\s", "");
         return encodedString;
     }
 }
