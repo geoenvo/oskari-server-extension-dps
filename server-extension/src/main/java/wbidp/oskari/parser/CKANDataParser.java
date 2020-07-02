@@ -53,10 +53,12 @@ public class CKANDataParser {
         User user = new User();
 
         String CKANUserName = (String) CKANUserJSON.get("name");
+        String CKANUserUuid = (String) CKANUserJSON.get("id");
         String CKANUserEmail = (String) CKANUserJSON.get("email");
         //String CKANUserPasswordHash = (String) CKANUserJSON.get("password_hash");
         String CKANUserFullname = (String) CKANUserJSON.get("fullname");
         user.setScreenname(CKANUserName);
+        user.setUuid(CKANUserUuid);
         if ((CKANUserEmail != null) && !(CKANUserEmail.isEmpty())) {
             user.setEmail(CKANUserEmail);
         }
@@ -140,9 +142,11 @@ public class CKANDataParser {
                     try {
                         CKANOrgJSON = (JSONObject) parser.parse(CKANOrgJSONStr);
                         String CKANOrgName = (String) CKANOrgJSON.get("name");
+                        String CKANOrgUuid = (String) CKANOrgJSON.get("id");
                         JSONArray CKANOrgUsersJSON = (JSONArray) CKANOrgJSON.get("users");
                         CKANOrganization org = new CKANOrganization();
                         org.setName(CKANOrgName);
+                        org.setUuid(CKANOrgUuid);
                         Iterator it = CKANOrgUsersJSON.iterator();
                         while (it.hasNext()) {
                             JSONObject CKANUserJSON = (JSONObject) it.next();

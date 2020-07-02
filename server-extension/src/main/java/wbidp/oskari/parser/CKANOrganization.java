@@ -10,6 +10,7 @@ import fi.nls.oskari.domain.User;
  */
 public class CKANOrganization {
     private String name;
+    private String uuid;
     private Set<User> users = new LinkedHashSet<>();
 
     public String getName() {
@@ -18,6 +19,14 @@ public class CKANOrganization {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
     }
 
     public Set<User> getUsers() {
