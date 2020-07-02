@@ -1,13 +1,19 @@
 package wbidp.oskari.db;
 
 import wbidp.oskari.jobs.SynchronizeUserDataJob;
+import wbidp.oskari.parser.CKANDataParser;
 import fi.nls.oskari.log.LogFactory;
 import fi.nls.oskari.log.Logger;
 import fi.nls.oskari.util.PropertyUtil;
+import fi.nls.oskari.service.UserService;
+import fi.nls.oskari.service.ServiceException;
+import fi.nls.oskari.domain.Role;
+import fi.nls.oskari.domain.User;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.sql.PreparedStatement;
 
 public class SynchronizeDatabase {
@@ -19,8 +25,8 @@ public class SynchronizeDatabase {
 
         // Get CKAN settings
         String dbUrl = PropertyUtil.get(dbUrlProp, "jdbc:postgresql://localhost:5432/testdb");
-        String dbUsername = PropertyUtil.get(dbUrlProp, "username");
-        String dbPassword = PropertyUtil.get(dbUrlProp, "password");
+        String dbUsername = PropertyUtil.get(dbUserProp, "username");
+        String dbPassword = PropertyUtil.get(dbPasswordProp, "password");
 
         // Test connection
         try {
@@ -50,13 +56,12 @@ public class SynchronizeDatabase {
         } catch (Exception e) {
             LOG.error("Unable to truncate table(s)! " + e);
         }
-
-        // TODO: Add new groups (roles in Oskari) from CKAN
     }
 
     public void synchronizeUsersFromCKAN() {
         Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.username", "ckan.integration.db.password");
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
+        boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
 
         if (ckanConnection == null || oskariConnection == null) {
             LOG.error("Unable to synchronize CKAN users to Oskari.");
@@ -64,13 +69,36 @@ public class SynchronizeDatabase {
         }
 
         try {
-            truncateData(oskariConnection, "oskari_users");
+            if (truncateData) {
+                truncateData(oskariConnection, "oskari_users");
+                addUsers(CKANDataParser.parseJSONToUsers(""));
+            } else {
+                addUsers(CKANDataParser.parseJSONToUsers(""));
+            }
         } catch (Exception e) {
-            LOG.error("Unable to truncate table! " + e);
+            LOG.error("Unable to synchronize users! " + e);
+        }
+    }
+
+    public void synchronizeUsersFromCKAN(String userJSON) {
+        Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
+        boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
+
+        if (oskariConnection == null) {
+            LOG.error("Unable to synchronize CKAN users to Oskari.");
+            return;
         }
 
-        // TODO: Add new users from CKAN
-        // TODO: Add users to roles in Oskari
+        try {
+            if (truncateData) {
+                truncateData(oskariConnection, "oskari_users");
+                addUsers(CKANDataParser.parseJSONToUsers(userJSON));
+            } else {
+                addUsers(CKANDataParser.parseJSONToUsers(userJSON));
+            }
+        } catch (Exception e) {
+            LOG.error("Unable to synchronize users! " + e);
+        }
     }
 
     public void synchronizeLayersFromCKAN() {
@@ -83,8 +111,47 @@ public class SynchronizeDatabase {
         }
     }
 
-    private void addUsers(Connection connection) throws SQLException {
-        // TODO: Read users from CKAN and add to Oskari DB
+    private void addUsers(ArrayList<User> users) throws ServiceException {
+        UserService userService = UserService.getInstance();
+
+        users.forEach(user -> {
+            try {
+                User retUser = userService.createUser(user);
+                userService.setUserPassword(retUser.getScreenname(), String.format("changeme_%s", retUser.getScreenname()));
+            } catch (ServiceException se) {
+                LOG.error(se, "Error while adding user: " + user.getScreenname());
+            }
+        });
+    }
+
+    private void addUserToDb(String username, String firstName, String lastName, String email, String password) throws ServiceException {
+        try {
+            UserService userService = UserService.getInstance();
+            User user = new User();
+            user.setScreenname("TT");
+            user.setFirstname("Testi");
+            user.setLastname("Teppo");
+            user.setEmail("");
+            String[] roles = {"1"};
+            User retUser = userService.createUser(user, roles);
+            userService.setUserPassword(retUser.getScreenname(), String.format("changeme_%s", retUser.getScreenname()));
+        } catch (ServiceException se) {
+            LOG.error(se, "Unable to create user!");
+        }
+    }
+
+    private void removeUserFromDb(String username) {
+        try {
+            UserService userService = UserService.getInstance();
+            User userToDelete = userService.getUser(username);
+            if (userToDelete != null) {
+                userService.deleteUser(userToDelete.getId());
+            } else {
+                LOG.debug(String.format("Nothing deleted, username %s does not exist.", username));
+            }
+        } catch (ServiceException se) {
+            LOG.error(se, "Error while removing user.");
+        }
     }
 
     private void addRoles(Connection connection) throws SQLException {
@@ -100,14 +167,14 @@ public class SynchronizeDatabase {
     }
 
     private void truncateData(Connection connection, String tableName) throws SQLException {
-        /*String sql = "TRUNCATE TABLE ? CASCADE;";
+        String sql = "TRUNCATE TABLE ? CASCADE;";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, tableName);
 
             LOG.debug("Executing:", ps.toString());
             int i = ps.executeUpdate();
             LOG.debug("Truncate result:", i);
-        }*/
-        LOG.info("Executing truncate.. (not for real yet!)");
+        }
+        LOG.info("Executing truncate..");
     }
 }
