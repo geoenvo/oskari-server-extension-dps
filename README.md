@@ -39,6 +39,9 @@ To automate the process of transferring data between CKAN and Oskari (users, gro
     ckan.integration.db.url=jdbc:postgresql://localhost:5432/ckan
     ckan.integration.db.username=oskari
     ckan.integration.db.password=oskari19
+    ckan.integration.ckanapi.dump.organizations=/tmp/ckanorgsdump.jsonl
+    ckan.integration.ckanapi.dump.users=/tmp/ckanusersdump.jsonl
+    ckan.integration.ckanapi.dump.datasets=/tmp/ckandatasetsdump.jsonl
 
 ## Settings related to Download Basket
 
