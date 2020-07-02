@@ -24,6 +24,10 @@ Replace oskari-map.war under {jetty.home}/webapps/ with the one created under we
 
 ## Settings related to CKAN Integration
 
+To support using CKAN's hashed passwords with Oskari, you need to change the used UserService in **oskari-ext.properties** (replace the existing setting!):
+
+    oskari.user.service=wbidp.oskari.util.DatabaseUserServiceCKAN
+
 To automate the process of transferring data between CKAN and Oskari (users, groups and layers), you need to add e.g. these settings to **oskari-ext.properties**:
 
     ##################################
@@ -72,12 +76,14 @@ To enable Content Editor functionality you need to add e.g. these settings to **
     ##################################
 
     permission.types = EDIT_LAYER_CONTENT
+    permission.EDIT_LAYER_CONTENT.name.fi=Edit layer
     permission.EDIT_LAYER_CONTENT.name.en=Edit layer
+    permission.EDIT_LAYER_CONTENT.name.id=Lapisan edi
 
 Also, you need to add the bundle to the dynamic bundles list and modify permissions e.g.
 
     # bundles that are added on runtime to view if user has one of configured role
-    actionhandler.GetAppSetup.dynamic.bundles = admin-hierarchical-layerlist, admin-layereditor, admin-layerselector, admin-layerrights, admin-users, admin
+    actionhandler.GetAppSetup.dynamic.bundles = admin-hierarchical-layerlist, admin-layereditor, admin-layerselector, admin-layerrights, admin-users, admin, content-editor
     actionhandler.GetAppSetup.dynamic.bundle.content-editor.roles = Admin
 
 ## License
