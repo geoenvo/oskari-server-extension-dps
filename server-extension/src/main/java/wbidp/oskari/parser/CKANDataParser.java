@@ -76,8 +76,38 @@ public class CKANDataParser {
             user.setFirstname(user.getScreenname());
             user.setLastname("");
         }
+        // System.out.println(user.getScreenname());
+        // System.out.println(user.getUuid());
+        // System.out.println(user.getEmail());
+        // System.out.println(user.getFullName());
 
         return user;
+    }
+
+    /**
+     * Get an Oskari Role from a CKAN Organization JSONObject.
+     * 
+     * @param CKANOrgJSON a CKAN Organization JSONObject.
+     * @return a CKANOrganization object.
+     */
+    public static CKANOrganization getRoleFromJSON(JSONObject CKANOrgJSON) {
+        CKANOrganization org = new CKANOrganization();
+
+        String CKANOrgName = (String) CKANOrgJSON.get("name");
+        String CKANOrgUuid = (String) CKANOrgJSON.get("id");
+        JSONArray CKANOrgUsersJSON = (JSONArray) CKANOrgJSON.get("users");
+        org.setName(CKANOrgName);
+        org.setUuid(CKANOrgUuid);
+        Iterator it = CKANOrgUsersJSON.iterator();
+        while (it.hasNext()) {
+            JSONObject CKANUserJSON = (JSONObject) it.next();
+            User user = getUserFromJSON(CKANUserJSON);
+            org.addUser(user);
+        }
+        // System.out.println(org.getName());
+        // System.out.println(org.getUuid());
+
+        return org;
     }
 
     /**
@@ -103,9 +133,6 @@ public class CKANDataParser {
                     try {
                         CKANUserJSON = (JSONObject) parser.parse(CKANUserJSONStr);
                         User user = getUserFromJSON(CKANUserJSON);
-                        // System.out.println(user.getScreenname());
-                        // System.out.println(user.getEmail());
-                        // System.out.println(user.getFullName());
                         users.add(user);
                     } catch (ParseException e) {
                         LOG.error("Unable to parse CKAN User JSON! " + e);
@@ -141,21 +168,7 @@ public class CKANDataParser {
                     // System.out.println(CKANOrgJSONStr);
                     try {
                         CKANOrgJSON = (JSONObject) parser.parse(CKANOrgJSONStr);
-                        String CKANOrgName = (String) CKANOrgJSON.get("name");
-                        String CKANOrgUuid = (String) CKANOrgJSON.get("id");
-                        JSONArray CKANOrgUsersJSON = (JSONArray) CKANOrgJSON.get("users");
-                        CKANOrganization org = new CKANOrganization();
-                        org.setName(CKANOrgName);
-                        org.setUuid(CKANOrgUuid);
-                        Iterator it = CKANOrgUsersJSON.iterator();
-                        while (it.hasNext()) {
-                            JSONObject CKANUserJSON = (JSONObject) it.next();
-                            User user = getUserFromJSON(CKANUserJSON);
-                            // System.out.println(user.getScreenname());
-                            // System.out.println(user.getEmail());
-                            // System.out.println(user.getFullName());
-                            org.addUser(user);
-                        }
+                        CKANOrganization org = getRoleFromJSON(CKANOrgJSON);
                         roles.add(org);
                     } catch (ParseException e) {
                         LOG.error("Unable to parse CKAN Organization JSON! " + e);
