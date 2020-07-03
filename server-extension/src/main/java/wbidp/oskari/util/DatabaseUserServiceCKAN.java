@@ -7,7 +7,10 @@ import fi.nls.oskari.log.LogFactory;
 import fi.nls.oskari.log.Logger;
 import fi.nls.oskari.service.ServiceException;
 import fi.nls.oskari.user.DatabaseUserService;
+import fi.nls.oskari.user.MybatisRoleService;
 import fi.nls.oskari.user.MybatisUserService;
+import wbidp.oskari.parser.CKANUser;
+
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 /**
@@ -17,11 +20,13 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
  * own format.
  */
 public class DatabaseUserServiceCKAN extends DatabaseUserService {
+    private MybatisRoleService roleService = new MybatisRoleService();
     private MybatisUserService userService = new MybatisUserService();
     
     private static final Logger log = LogFactory.getLogger(DatabaseUserService.class);
 
     private static final int BCRYPT_PASSWORD_LENGTH = 60;
+    private static final String ERR_USER_MISSING = "User was null";
 
     @Override
     public User login(final String user, final String pass) throws ServiceException {
@@ -66,4 +71,43 @@ public class DatabaseUserServiceCKAN extends DatabaseUserService {
         }
     }
 
+    public User createCKANUser(CKANUser user, String[] roleIds) throws ServiceException {
+        log.debug("createCKANUser #######################");
+        if(user == null) {
+            throw new ServiceException(ERR_USER_MISSING);
+        }
+        if(user.getUuid() == null || user.getUuid().isEmpty()) {
+            user.setUuid(generateUuid());
+        }
+        Long id = userService.addUser(user);
+        
+        for(String roleId : roleIds){
+        	log.debug("roleId: " + roleId + " userId: " + id);
+            roleService.linkRoleToUser(Long.valueOf(roleId), id);
+        }    
+        
+        setUserPassword(user.getScreenname(), user.getCKANPasswordHash());
+
+        return userService.find(id);
+    }
+
+    @Override
+    public void setUserPassword(String username, String password) throws ServiceException {
+        if (password.startsWith("$pbkdf2-sha512")) {
+            userService.setPassword(username, password);
+        } else {
+            String hashed = BCrypt.hashpw(password, BCrypt.gensalt());
+            userService.setPassword(username, hashed);
+        }
+    }
+
+    @Override
+    public void updateUserPassword(String username, String password) throws ServiceException {
+        if (password.startsWith("$pbkdf2-sha512")) {
+            userService.updatePassword(username, password);
+        } else {
+            String hashed = BCrypt.hashpw(password, BCrypt.gensalt());
+            userService.updatePassword(username, hashed);
+        }
+    }
 }

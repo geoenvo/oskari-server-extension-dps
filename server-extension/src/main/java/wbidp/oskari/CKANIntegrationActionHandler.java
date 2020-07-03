@@ -1,6 +1,7 @@
 package wbidp.oskari;
 
 import wbidp.oskari.db.SynchronizeDatabase;
+
 import fi.nls.oskari.annotation.OskariActionRoute;
 import fi.nls.oskari.control.*;
 import fi.nls.oskari.log.LogFactory;
@@ -9,6 +10,9 @@ import fi.nls.oskari.util.ResponseHelper;
 
 /**
  * CKAN Integration Rest action route
+ * 
+ * NOTE! This is a convenience class just for testing! 
+ * Will be removed from the final version.
  */
 @OskariActionRoute("CKANAction")
 public class CKANIntegrationActionHandler extends RestActionHandler {
@@ -22,7 +26,7 @@ public class CKANIntegrationActionHandler extends RestActionHandler {
 
     @Override
     public void handleGet(ActionParameters params) throws ActionException {
-        throw new ActionParamsException(String.format("GET-method for route %s not implemented.", getName()));
+        handlePost(params);
     }
 
     @Override
@@ -30,7 +34,6 @@ public class CKANIntegrationActionHandler extends RestActionHandler {
         if (params.getUser() != null && params.getUser().isAdmin()) {
             SynchronizeDatabase syncDb = new SynchronizeDatabase();
             syncDb.synchronizeUsersFromCKAN();
-            syncDb.synchronizeGroupsFromCKAN();
         } else {
             ResponseHelper.writeResponse(params, params.getUser() + " cannot access CKAN synchronizer.");
         }

@@ -6,12 +6,8 @@ import java.nio.file.Paths;
 import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.StringReader;
-import java.util.Set;
-import java.util.LinkedHashSet;
 import java.util.Iterator;
 
-import fi.nls.oskari.domain.User;
-import fi.nls.oskari.domain.Role;
 import fi.nls.oskari.log.LogFactory;
 import fi.nls.oskari.log.Logger;
 
@@ -44,18 +40,18 @@ public class CKANDataParser {
     }
 
     /**
-     * Get an Oskari User from a CKAN User JSONObject
+     * Get an Oskari CKANUser from a CKAN User JSONObject
      * 
      * @param CKANUserJSON a CKAN User JSONObject.
-     * @return an Oskari User object.
+     * @return an Oskari CKANUser object.
      */
-    public static User getUserFromJSON(JSONObject CKANUserJSON) {
-        User user = new User();
+    public static CKANUser getUserFromJSON(JSONObject CKANUserJSON) {
+        CKANUser user = new CKANUser();
 
         String CKANUserName = (String) CKANUserJSON.get("name");
         String CKANUserUuid = (String) CKANUserJSON.get("id");
         String CKANUserEmail = (String) CKANUserJSON.get("email");
-        //String CKANUserPasswordHash = (String) CKANUserJSON.get("password_hash");
+        String CKANUserPasswordHash = (String) CKANUserJSON.get("password_hash");
         String CKANUserFullname = (String) CKANUserJSON.get("fullname");
         user.setScreenname(CKANUserName);
         user.setUuid(CKANUserUuid);
@@ -76,10 +72,7 @@ public class CKANDataParser {
             user.setFirstname(user.getScreenname());
             user.setLastname("");
         }
-        // System.out.println(user.getScreenname());
-        // System.out.println(user.getUuid());
-        // System.out.println(user.getEmail());
-        // System.out.println(user.getFullName());
+        user.setCKANPasswordHash(CKANUserPasswordHash);
 
         return user;
     }
@@ -101,11 +94,9 @@ public class CKANDataParser {
         Iterator it = CKANOrgUsersJSON.iterator();
         while (it.hasNext()) {
             JSONObject CKANUserJSON = (JSONObject) it.next();
-            User user = getUserFromJSON(CKANUserJSON);
+            CKANUser user = getUserFromJSON(CKANUserJSON);
             org.addUser(user);
         }
-        // System.out.println(org.getName());
-        // System.out.println(org.getUuid());
 
         return org;
     }
@@ -114,10 +105,10 @@ public class CKANDataParser {
      * Parses JSON user data from CKAN to Oskari Users.
      * 
      * @param JSONFromCKAN user data from CKAN as JSON.
-     * @return an ArrayList of Oskari User objects.
+     * @return an ArrayList of Oskari CKANUser objects.
      */
-    public static ArrayList<User> parseJSONToUsers(String JSONFromCKAN) {
-        ArrayList<User> users = new ArrayList<>();
+    public static ArrayList<CKANUser> parseJSONToUsers(String JSONFromCKAN) {
+        ArrayList<CKANUser> users = new ArrayList<>();
         String CKANUserJSONStr;
         JSONObject CKANUserJSON = new JSONObject();
         JSONParser parser = new JSONParser();
@@ -132,7 +123,7 @@ public class CKANDataParser {
                     // System.out.println(CKANUserJSONStr);
                     try {
                         CKANUserJSON = (JSONObject) parser.parse(CKANUserJSONStr);
-                        User user = getUserFromJSON(CKANUserJSON);
+                        CKANUser user = getUserFromJSON(CKANUserJSON);
                         users.add(user);
                     } catch (ParseException e) {
                         LOG.error("Unable to parse CKAN User JSON! " + e);

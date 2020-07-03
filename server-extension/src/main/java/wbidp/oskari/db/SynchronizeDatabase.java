@@ -2,6 +2,9 @@ package wbidp.oskari.db;
 
 import wbidp.oskari.jobs.SynchronizeUserDataJob;
 import wbidp.oskari.parser.CKANDataParser;
+import wbidp.oskari.parser.CKANOrganization;
+import wbidp.oskari.parser.CKANUser;
+import wbidp.oskari.util.DatabaseUserServiceCKAN;
 import fi.nls.oskari.log.LogFactory;
 import fi.nls.oskari.log.Logger;
 import fi.nls.oskari.util.PropertyUtil;
@@ -66,12 +69,11 @@ public class SynchronizeDatabase {
     }
 
     public void synchronizeUsersFromCKAN() {
-        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.username", "ckan.integration.db.password");
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
         boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
         String CKANUsersDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.users", "/tmp/ckanusersdump.jsonl");
 
-        if (ckanConnection == null || oskariConnection == null) {
+        if (oskariConnection == null) {
             LOG.error("Unable to synchronize CKAN users to Oskari.");
             return;
         }
@@ -79,9 +81,9 @@ public class SynchronizeDatabase {
         try {
             if (truncateData) {
                 truncateData(oskariConnection, "oskari_users");
-                addUsers(CKANDataParser.parseJSONToUsers(""));
+                addUsers(CKANDataParser.parseJSONToUsers(CKANDataParser.readCKANDumpFile(CKANUsersDumpFile)));
             } else {
-                addUsers(CKANDataParser.parseJSONToUsers(""));
+                addUsers(CKANDataParser.parseJSONToUsers(CKANDataParser.readCKANDumpFile(CKANUsersDumpFile)));
             }
         } catch (Exception e) {
             LOG.error("Unable to synchronize users! " + e);
@@ -119,28 +121,27 @@ public class SynchronizeDatabase {
         }
     }
 
-    private void addUsers(ArrayList<User> users) throws ServiceException {
-        UserService userService = UserService.getInstance();
+    private void addUsers(ArrayList<CKANUser> users) throws ServiceException {
+        DatabaseUserServiceCKAN userService = new DatabaseUserServiceCKAN();
 
         users.forEach(user -> {
             try {
-                User retUser = userService.createUser(user);
-                userService.setUserPassword(retUser.getScreenname(), String.format("changeme_%s", retUser.getScreenname()));
+                String[] roles = {"2"};
+                userService.createCKANUser(user, roles);
             } catch (ServiceException se) {
                 LOG.error(se, "Error while adding user: " + user.getScreenname());
             }
         });
     }
 
-    private void addUserToDb(String username, String firstName, String lastName, String email, String password) throws ServiceException {
+    private void addUserToDb(String username, String firstName, String lastName, String email, String CKANPassword, String[] roles) throws ServiceException {
         try {
             UserService userService = UserService.getInstance();
             User user = new User();
-            user.setScreenname("TT");
-            user.setFirstname("Testi");
-            user.setLastname("Teppo");
-            user.setEmail("");
-            String[] roles = {"1"};
+            user.setScreenname(username);
+            user.setFirstname(firstName);
+            user.setLastname(lastName);
+            user.setEmail(email);
             User retUser = userService.createUser(user, roles);
             userService.setUserPassword(retUser.getScreenname(), String.format("changeme_%s", retUser.getScreenname()));
         } catch (ServiceException se) {
