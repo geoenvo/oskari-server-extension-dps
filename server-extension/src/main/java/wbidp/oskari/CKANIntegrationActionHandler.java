@@ -33,6 +33,7 @@ public class CKANIntegrationActionHandler extends RestActionHandler {
     public void handlePost(ActionParameters params) throws ActionException {
         if (params.getUser() != null && params.getUser().isAdmin()) {
             SynchronizeDatabase syncDb = new SynchronizeDatabase();
+            syncDb.synchronizeRolesFromCKAN();
             syncDb.synchronizeUsersFromCKAN();
         } else {
             ResponseHelper.writeResponse(params, params.getUser() + " cannot access CKAN synchronizer.");

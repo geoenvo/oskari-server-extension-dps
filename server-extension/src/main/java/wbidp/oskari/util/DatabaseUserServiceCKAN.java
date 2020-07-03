@@ -1,5 +1,8 @@
 package wbidp.oskari.util;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.commons.codec.digest.DigestUtils;
 
 import fi.nls.oskari.domain.User;
@@ -9,7 +12,9 @@ import fi.nls.oskari.service.ServiceException;
 import fi.nls.oskari.user.DatabaseUserService;
 import fi.nls.oskari.user.MybatisRoleService;
 import fi.nls.oskari.user.MybatisUserService;
+import wbidp.oskari.parser.CKANOrganization;
 import wbidp.oskari.parser.CKANUser;
+import fi.nls.oskari.domain.Role;
 
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
@@ -85,7 +90,7 @@ public class DatabaseUserServiceCKAN extends DatabaseUserService {
         	log.debug("roleId: " + roleId + " userId: " + id);
             roleService.linkRoleToUser(Long.valueOf(roleId), id);
         }    
-        
+
         setUserPassword(user.getScreenname(), user.getCKANPasswordHash());
 
         return userService.find(id);
@@ -109,5 +114,37 @@ public class DatabaseUserServiceCKAN extends DatabaseUserService {
             String hashed = BCrypt.hashpw(password, BCrypt.gensalt());
             userService.updatePassword(username, hashed);
         }
+    }
+
+    public void storeCKANOrganizationsAsRoles(final Set<CKANOrganization> userRoles) {
+        try {
+            ensureRolesInDB(userRoles);
+        } catch (ServiceException e) {
+            log.error(e + "Error storing CKAN organizations as roles to db.");
+        }
+    }
+
+    private Set<CKANOrganization> ensureRolesInDB(final Set<CKANOrganization> userRoles) throws ServiceException {
+        final Role[] systemRoles = getRoles();
+        final Set<Role> rolesToInsert = new HashSet<Role>(userRoles.size());
+        for(Role userRole : userRoles) {
+            boolean found = false;
+            for(Role role : systemRoles) {
+                if(role.getName().equals(userRole.getName())) {
+                    // assign ID from role with same name in db
+                    userRole.setId(role.getId());
+                    found = true;
+                }
+            }
+            if(!found) {
+                rolesToInsert.add(userRole);
+            }
+        }
+        // insert missing roles to DB and assign ID
+        for(Role role : rolesToInsert) {
+            Role dbRole = insertRole(role.getName());
+            role.setId(dbRole.getId());
+        }
+        return userRoles;
     }
 }

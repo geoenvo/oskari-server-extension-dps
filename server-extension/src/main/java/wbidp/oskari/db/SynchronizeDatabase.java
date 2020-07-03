@@ -8,6 +8,7 @@ import wbidp.oskari.util.DatabaseUserServiceCKAN;
 import fi.nls.oskari.log.LogFactory;
 import fi.nls.oskari.log.Logger;
 import fi.nls.oskari.util.PropertyUtil;
+import jj2000.j2k.codestream.HeaderInfo.QCC;
 import fi.nls.oskari.service.UserService;
 import fi.nls.oskari.service.ServiceException;
 import fi.nls.oskari.domain.Role;
@@ -17,6 +18,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
 
@@ -45,27 +48,31 @@ public class SynchronizeDatabase {
         return connection;
     }
 
-    public void synchronizeGroupsFromCKAN() {
-        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.username", "ckan.integration.db.password");
+    public void synchronizeRolesFromCKAN() {
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
+        boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
         String CKANOrgsDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.organizations", "/tmp/ckanorgsdump.jsonl");
 
-        if (ckanConnection == null || oskariConnection == null) {
-            LOG.error("Unable to synchronize CKAN groups to Oskari.");
+        if (oskariConnection == null) {
+            LOG.error("Unable to synchronize CKAN organizations to Oskari groups.");
             return;
-        }
-
-        try {
-            truncateData(oskariConnection, "oskari_roles");
-            truncateData(oskariConnection, "oskari_role_oskari_user");
-        } catch (Exception e) {
-            LOG.error("Unable to truncate table(s)! " + e);
         }
 
         String CKANOrgsDump = CKANDataParser.readCKANDumpFile(CKANOrgsDumpFile);
         ArrayList<CKANOrganization> roles = CKANDataParser.parseJSONtoRoles(CKANOrgsDump);
 
-        // TODO: Add new groups (roles in Oskari) from CKAN
+        try {
+            if (truncateData) {
+                truncateData(oskariConnection, "oskari_roles");
+                addRoles(roles);
+            } else {
+                addRoles(roles);
+            }
+        } catch (Exception e) {
+            LOG.error("Unable to synchronize users! " + e);
+        }
+
+        closeAllDbConnections(oskariConnection);
     }
 
     public void synchronizeUsersFromCKAN() {
@@ -78,37 +85,21 @@ public class SynchronizeDatabase {
             return;
         }
 
-        try {
-            if (truncateData) {
-                truncateData(oskariConnection, "oskari_users");
-                addUsers(CKANDataParser.parseJSONToUsers(CKANDataParser.readCKANDumpFile(CKANUsersDumpFile)));
-            } else {
-                addUsers(CKANDataParser.parseJSONToUsers(CKANDataParser.readCKANDumpFile(CKANUsersDumpFile)));
-            }
-        } catch (Exception e) {
-            LOG.error("Unable to synchronize users! " + e);
-        }
-    }
-
-    public void synchronizeUsersFromCKAN(String userJSON) {
-        Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
-        boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
-
-        if (oskariConnection == null) {
-            LOG.error("Unable to synchronize CKAN users to Oskari.");
-            return;
-        }
+        String CKANUsersDump = CKANDataParser.readCKANDumpFile(CKANUsersDumpFile);
+        ArrayList<CKANUser> users = CKANDataParser.parseJSONToUsers(CKANUsersDump);
 
         try {
             if (truncateData) {
                 truncateData(oskariConnection, "oskari_users");
-                addUsers(CKANDataParser.parseJSONToUsers(userJSON));
+                addUsers(users);
             } else {
-                addUsers(CKANDataParser.parseJSONToUsers(userJSON));
+                addUsers(users);
             }
         } catch (Exception e) {
             LOG.error("Unable to synchronize users! " + e);
         }
+
+        closeAllDbConnections(oskariConnection);
     }
 
     public void synchronizeLayersFromCKAN() {
@@ -119,6 +110,8 @@ public class SynchronizeDatabase {
             LOG.error("Unable to synchronize CKAN layers to Oskari.");
             return;
         }
+
+        closeAllDbConnections(oskariConnection);
     }
 
     private void addUsers(ArrayList<CKANUser> users) throws ServiceException {
@@ -134,41 +127,10 @@ public class SynchronizeDatabase {
         });
     }
 
-    private void addUserToDb(String username, String firstName, String lastName, String email, String CKANPassword, String[] roles) throws ServiceException {
-        try {
-            UserService userService = UserService.getInstance();
-            User user = new User();
-            user.setScreenname(username);
-            user.setFirstname(firstName);
-            user.setLastname(lastName);
-            user.setEmail(email);
-            User retUser = userService.createUser(user, roles);
-            userService.setUserPassword(retUser.getScreenname(), String.format("changeme_%s", retUser.getScreenname()));
-        } catch (ServiceException se) {
-            LOG.error(se, "Unable to create user!");
-        }
-    }
-
-    private void removeUserFromDb(String username) {
-        try {
-            UserService userService = UserService.getInstance();
-            User userToDelete = userService.getUser(username);
-            if (userToDelete != null) {
-                userService.deleteUser(userToDelete.getId());
-            } else {
-                LOG.debug(String.format("Nothing deleted, username %s does not exist.", username));
-            }
-        } catch (ServiceException se) {
-            LOG.error(se, "Error while removing user.");
-        }
-    }
-
-    private void addRoles(Connection connection) throws SQLException {
-        // TODO: Read groups from CKAN and add to Oskari DB as roles
-    }
-
-    private void mapUsersToRole(Connection connection) throws SQLException {
-        // TODO: Map user to a role in Oskari DB oskari_role_oskari_user
+    private void addRoles(ArrayList<CKANOrganization> roles) {
+        DatabaseUserServiceCKAN userService = new DatabaseUserServiceCKAN();
+        Set<CKANOrganization> roleSet = new HashSet<CKANOrganization>(roles);
+        userService.storeCKANOrganizationsAsRoles(roleSet);
     }
 
     private void addLayers(Connection connection) throws SQLException {
@@ -185,5 +147,15 @@ public class SynchronizeDatabase {
             LOG.debug("Truncate result:", i);
         }
         LOG.info("Executing truncate..");
+    }
+
+    private void closeAllDbConnections(Connection... connections) {
+        for (int i = 0; i < connections.length; ++i) {
+            try {
+                connections[i].close();
+            } catch (SQLException e) {
+                LOG.error(e + "Error closing database connection.");
+            }
+        }
     }
 }
