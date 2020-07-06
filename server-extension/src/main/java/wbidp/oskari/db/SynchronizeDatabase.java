@@ -1,27 +1,22 @@
 package wbidp.oskari.db;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+
+import fi.nls.oskari.log.LogFactory;
+import fi.nls.oskari.log.Logger;
+import fi.nls.oskari.service.ServiceException;
+import fi.nls.oskari.util.PropertyUtil;
 import wbidp.oskari.jobs.SynchronizeUserDataJob;
 import wbidp.oskari.parser.CKANDataParser;
 import wbidp.oskari.parser.CKANOrganization;
 import wbidp.oskari.parser.CKANUser;
 import wbidp.oskari.util.DatabaseUserServiceCKAN;
-import fi.nls.oskari.log.LogFactory;
-import fi.nls.oskari.log.Logger;
-import fi.nls.oskari.util.PropertyUtil;
-import jj2000.j2k.codestream.HeaderInfo.QCC;
-import fi.nls.oskari.service.UserService;
-import fi.nls.oskari.service.ServiceException;
-import fi.nls.oskari.domain.Role;
-import fi.nls.oskari.domain.User;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
-import java.sql.PreparedStatement;
-import java.util.ArrayList;
 
 public class SynchronizeDatabase {
 
@@ -111,7 +106,7 @@ public class SynchronizeDatabase {
             return;
         }
 
-        closeAllDbConnections(oskariConnection);
+        closeAllDbConnections(ckanConnection, oskariConnection);
     }
 
     private void addUsers(ArrayList<CKANUser> users) throws ServiceException {
@@ -120,7 +115,11 @@ public class SynchronizeDatabase {
         users.forEach(user -> {
             try {
                 String[] roles = {"2"};
-                userService.createCKANUser(user, roles);
+                if (userService.getUser(user.getScreenname()) != null) {
+                    userService.createCKANUser(user, roles);
+                } else {
+                    userService.modifyCKANUser(user, roles);
+                }
             } catch (ServiceException se) {
                 LOG.error(se, "Error while adding user: " + user.getScreenname());
             }

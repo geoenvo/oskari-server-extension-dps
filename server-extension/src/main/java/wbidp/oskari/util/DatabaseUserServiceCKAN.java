@@ -77,7 +77,7 @@ public class DatabaseUserServiceCKAN extends DatabaseUserService {
     }
 
     public User createCKANUser(CKANUser user, String[] roleIds) throws ServiceException {
-        log.debug("createCKANUser #######################");
+        log.info("createCKANUser #######################");
         if(user == null) {
             throw new ServiceException(ERR_USER_MISSING);
         }
@@ -94,6 +94,25 @@ public class DatabaseUserServiceCKAN extends DatabaseUserService {
         setUserPassword(user.getScreenname(), user.getCKANPasswordHash());
 
         return userService.find(id);
+    }
+
+    public User modifyCKANUser(CKANUser user, String[] roleIds) throws ServiceException {
+        log.info("modifyUserWithRoles");
+        userService.updateUser(user);
+        
+        if(roleIds != null){
+        	log.debug("starting to delete roles from a user");
+            roleService.deleteUsersRoles(user.getId());
+            log.debug("users roles deleted");
+            for(String roleId : roleIds){
+            	log.debug("roleId: " + roleId + " userId: " + user.getId());
+                roleService.linkRoleToUser(Long.valueOf(roleId), user.getId());
+            }
+        }else{
+        	log.debug("roleIds == null");
+        }
+        
+        return userService.find(user.getId());
     }
 
     @Override
