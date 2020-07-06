@@ -96,25 +96,6 @@ public class DatabaseUserServiceCKAN extends DatabaseUserService {
         return userService.find(id);
     }
 
-    public User modifyCKANUser(CKANUser user, String[] roleIds) throws ServiceException {
-        log.info("modifyUserWithRoles");
-        userService.updateUser(user);
-        
-        if(roleIds != null){
-        	log.debug("starting to delete roles from a user");
-            roleService.deleteUsersRoles(user.getId());
-            log.debug("users roles deleted");
-            for(String roleId : roleIds){
-            	log.debug("roleId: " + roleId + " userId: " + user.getId());
-                roleService.linkRoleToUser(Long.valueOf(roleId), user.getId());
-            }
-        }else{
-        	log.debug("roleIds == null");
-        }
-        
-        return userService.find(user.getId());
-    }
-
     @Override
     public void setUserPassword(String username, String password) throws ServiceException {
         if (password.startsWith("$pbkdf2-sha512")) {
