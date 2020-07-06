@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
+import fi.nls.oskari.domain.User;
 import fi.nls.oskari.log.LogFactory;
 import fi.nls.oskari.log.Logger;
 import fi.nls.oskari.service.ServiceException;
@@ -59,6 +60,7 @@ public class SynchronizeDatabase {
         try {
             if (truncateData) {
                 truncateData(oskariConnection, "oskari_roles");
+                truncateData(oskariConnection, "oskari_role_oskari_user");
                 addRoles(roles);
             } else {
                 addRoles(roles);
@@ -97,6 +99,40 @@ public class SynchronizeDatabase {
         closeAllDbConnections(oskariConnection);
     }
 
+    public void synchronizeUsersWithRolesFromCKAN() {
+        Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
+        boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
+        String CKANOrgsDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.organizations", "/tmp/ckanorgsdump.jsonl");
+        String CKANUsersDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.users", "/tmp/ckanusersdump.jsonl");
+
+        if (oskariConnection == null) {
+            LOG.error("Unable to synchronize CKAN users to Oskari.");
+            return;
+        }
+
+        String CKANOrgsDump = CKANDataParser.readCKANDumpFile(CKANOrgsDumpFile);
+        ArrayList<CKANOrganization> roles = CKANDataParser.parseJSONtoRoles(CKANOrgsDump);
+        String CKANUsersDump = CKANDataParser.readCKANDumpFile(CKANUsersDumpFile);
+        ArrayList<CKANUser> users = CKANDataParser.parseJSONToUsers(CKANUsersDump);
+
+        try {
+            if (truncateData) {
+                truncateData(oskariConnection, "oskari_roles");
+                truncateData(oskariConnection, "oskari_role_oskari_user");
+                addRoles(roles);
+                truncateData(oskariConnection, "oskari_users");
+                addUsers(users, roles);
+            } else {
+                addRoles(roles);
+                addUsers(users, roles);
+            }
+        } catch (Exception e) {
+            LOG.error("Unable to synchronize users! " + e);
+        }
+
+        closeAllDbConnections(oskariConnection);
+    }
+
     public void synchronizeLayersFromCKAN() {
         Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.username", "ckan.integration.db.password");
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
@@ -115,10 +151,38 @@ public class SynchronizeDatabase {
         users.forEach(user -> {
             try {
                 String[] roles = {"2"};
-                if (userService.getUser(user.getScreenname()) != null) {
+                User existingUser = userService.getUser(user.getScreenname());
+                if (existingUser == null) {
                     userService.createCKANUser(user, roles);
                 } else {
-                    userService.modifyCKANUser(user, roles);
+                    user.setId(existingUser.getId());
+                    userService.modifyUserwithRoles(user, roles);
+                }
+            } catch (ServiceException se) {
+                LOG.error(se, "Error while adding user: " + user.getScreenname());
+            }
+        });
+    }
+
+    private void addUsers(ArrayList<CKANUser> users, ArrayList<CKANOrganization> organizations) throws ServiceException {
+        DatabaseUserServiceCKAN userService = new DatabaseUserServiceCKAN();
+
+        users.forEach(user -> {
+            try {
+                ArrayList<String> userRoles = new ArrayList<>();
+                organizations.forEach(organization -> {
+                    if (organization.getUsers().contains(user)) {
+                        userRoles.add(String.valueOf(organization.getId()));
+                    }
+                });
+                String[] roles = new String[userRoles.size()];
+                userRoles.toArray(roles);
+                User existingUser = userService.getUser(user.getScreenname());
+                if (existingUser == null) {
+                    userService.createCKANUser(user, roles);
+                } else {
+                    user.setId(existingUser.getId());
+                    userService.modifyUserwithRoles(user, roles);
                 }
             } catch (ServiceException se) {
                 LOG.error(se, "Error while adding user: " + user.getScreenname());
