@@ -172,11 +172,11 @@ public class SynchronizeDatabase {
                 ArrayList<String> userRoles = new ArrayList<>();
                 organizations.forEach(organization -> {
                     if (organization.getUsers().contains(user)) {
-                        userRoles.add(String.valueOf(organization.getId()));
+                        userRoles.add(String.valueOf(userService.getRoleByName(organization.getName()).getId()));
                     }
                 });
                 String[] roles = new String[userRoles.size()];
-                userRoles.toArray(roles);
+                roles = userRoles.toArray(roles);
                 User existingUser = userService.getUser(user.getScreenname());
                 if (existingUser == null) {
                     userService.createCKANUser(user, roles);
