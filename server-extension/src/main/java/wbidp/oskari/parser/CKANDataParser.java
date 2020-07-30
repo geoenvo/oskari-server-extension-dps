@@ -242,16 +242,17 @@ public class CKANDataParser {
         String user = (resource.get("username") != null) ? (String) resource.get("username") : "";
         String pw = (resource.get("password") != null) ? (String) resource.get("password") : "";
         String currentCrs = "EPSG:3067";
+        boolean isPrivateAPI = (boolean) resource.get("private");
 
         switch ((format).toLowerCase()) {
             case "wms":
-                addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs);
+                addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateAPI);
                 break;
             case "wmts":
-                addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs);
+                addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateAPI);
                 break;
             case "wfs":
-                addWFSLayers(resource, connection, url, user, pw, currentCrs);
+                addWFSLayers(resource, connection, url, user, pw, currentCrs, isPrivateAPI);
                 break;
             case "esri rest":
                 // TODO: Add support for Esri REST
@@ -262,19 +263,19 @@ public class CKANDataParser {
     }
 
     private static void addWMSLayers(JSONObject resource, Connection connection,
-            CapabilitiesCacheService capabilitiesService, String url, String user, String pw, String currentCrs)
-            throws ServiceException {
+            CapabilitiesCacheService capabilitiesService, String url, String user, String pw, 
+            String currentCrs, boolean isPrivateAPI) throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.3.0";
 
         LOG.debug(String.format("Getting WMS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWMSCapabilities.getWMSCapabilities(capabilitiesService, url, user, pw, version,
                 currentCrs);
-        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS);
+        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS, isPrivateAPI);
     }
 
     private static void addWMTSLayers(JSONObject resource, Connection connection,
-            CapabilitiesCacheService capabilitiesService, String url, String user, String pw, String currentCrs)
-            throws ServiceException {
+            CapabilitiesCacheService capabilitiesService, String url, String user, String pw, 
+            String currentCrs, boolean isPrivateAPI) throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
 
         LOG.debug(String.format("Getting WMTS capabilities from %s (version %s)", url, version));
@@ -288,23 +289,23 @@ public class CKANDataParser {
             }
             org.json.JSONObject resultJSON = WMTSCapabilitiesParser.asJSON(wmtsCaps, url, currentCrs);
             JSONHelper.putValue(resultJSON, "xml", capabilitiesXML);
-            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS);
+            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS, isPrivateAPI);
         } catch (IllegalArgumentException | XMLStreamException e) {
             LOG.error("Error while parsing WMTS capabilities. " + e);
         }
     }
 
-    private static void addWFSLayers(JSONObject resource, Connection connection, String url, String user, String pw, String currentCrs)
-            throws ServiceException {
+    private static void addWFSLayers(JSONObject resource, Connection connection, String url, String user, String pw, 
+            String currentCrs, boolean isPrivateAPI) throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
         
         LOG.debug(String.format("Getting WFS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWFSCapabilities.getWFSCapabilities(url, user, pw, version, currentCrs);
-        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS);
+        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS, isPrivateAPI);
     }
 
     private static void addLayers(Connection connection, String url, String user, String pw, String currentCrs,
-            org.json.JSONObject json, String layerType) {
+            org.json.JSONObject json, String layerType, boolean isPrivateAPI) {
         try {
             String mainGroupName = json.has("title") ? json.getString("title") : "Random Layers";
             org.json.JSONObject locale = LayerJSONHelper.getLocale(mainGroupName, mainGroupName, mainGroupName);
@@ -319,13 +320,21 @@ public class CKANDataParser {
             org.json.JSONArray layers = json.getJSONArray("layers");
             org.json.JSONArray layersToAdd = new org.json.JSONArray();
             
+            // TODO: Define permissions JSON according to CKAN roles!
+            org.json.JSONObject layerPermissions = LayerJSONHelper.getRolePermissionsJSON();
+            
+            // If API is marked private in CKAN, only allow admins to see it!
+            if (isPrivateAPI) {
+                layerPermissions = LayerJSONHelper.getAdminPermissionsJSON();
+            }
+            
             for (int i = 0; i < layers.length(); i++) {
                 String layerName = layers.getJSONObject(i).getString("layerName");
                 String layerTitle = layers.getJSONObject(i).getString("title");
                 layersToAdd.put(LayerHelper.generateLayerJSON(layerType, url, layerName, mainGroupName,
                         LayerJSONHelper.getLocale(layerTitle, layerTitle, layerTitle), false, -1,
                         null, -1.0, -1.0, null, null, null, null, null, null, false, 0, currentCrs, LayerHelper.VERSION_WMS130,
-                        user, pw, null, null, LayerJSONHelper.getRolePermissionsJSON(), LayerJSONHelper.getForceProxyAttributeJSON()));
+                        user, pw, null, null, layerPermissions, LayerJSONHelper.getForceProxyAttributeJSON()));
             }
             
             int addedCount = LayerHelper.addLayers(layersToAdd, LayerHelper.getLayerGroups(groupId), true, connection);
