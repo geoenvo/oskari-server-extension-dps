@@ -268,7 +268,7 @@ public class CKANDataParser {
             throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.3.0";
 
-        LOG.debug(String.format("Getting WMS cababilities from %s (version %s)", url, version));
+        LOG.debug(String.format("Getting WMS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWMSCapabilities.getWMSCapabilities(capabilitiesService, url, user, pw, version,
                 currentCrs);
         addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS);
@@ -279,7 +279,7 @@ public class CKANDataParser {
             throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
 
-        LOG.debug(String.format("Getting WMTS cababilities from %s (version %s)", url, version));
+        LOG.debug(String.format("Getting WMTS capabilities from %s (version %s)", url, version));
         OskariLayerCapabilities caps = capabilitiesService.getCapabilities(url, OskariLayer.TYPE_WMTS, version, user, pw);
         String capabilitiesXML = caps.getData();
         WMTSCapabilities wmtsCaps;
@@ -300,7 +300,7 @@ public class CKANDataParser {
             throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
         
-        LOG.debug(String.format("Getting WFS cababilities from %s (version %s)", url, version));
+        LOG.debug(String.format("Getting WFS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWFSCapabilities.getWFSCapabilities(url, user, pw, version, currentCrs);
         addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS);
     }
