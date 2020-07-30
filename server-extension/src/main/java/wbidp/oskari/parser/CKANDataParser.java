@@ -17,8 +17,6 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import fi.mml.map.mapwindow.service.db.OskariMapLayerGroupService;
-import fi.mml.map.mapwindow.service.db.OskariMapLayerGroupServiceIbatisImpl;
 import fi.nls.oskari.domain.map.DataProvider;
 import fi.nls.oskari.domain.map.OskariLayer;
 import fi.nls.oskari.log.LogFactory;
@@ -331,7 +329,7 @@ public class CKANDataParser {
             }
             
             int addedCount = LayerHelper.addLayers(layersToAdd, LayerHelper.getLayerGroups(groupId), true, connection);
-            LOG.debug(String.format("Added %d layer(s) from %s under group %s.", addedCount, url, mainGroupName));
+            LOG.debug(String.format("Added %d layer(s) from %s to group %s.", addedCount, url, mainGroupName));
         } catch (JSONException e) {
             LOG.error("Unable to read layer data from json! " + e);
         }
