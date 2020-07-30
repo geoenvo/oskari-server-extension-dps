@@ -9,6 +9,8 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import javax.xml.stream.XMLStreamException;
+
 import org.json.JSONException;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -26,8 +28,12 @@ import fi.nls.oskari.map.layer.DataProviderServiceMybatisImpl;
 import fi.nls.oskari.service.OskariComponentManager;
 import fi.nls.oskari.service.ServiceException;
 import fi.nls.oskari.service.capabilities.CapabilitiesCacheService;
+import fi.nls.oskari.service.capabilities.OskariLayerCapabilities;
+import fi.nls.oskari.util.JSONHelper;
 import fi.nls.oskari.wfs.GetGtWFSCapabilities;
 import fi.nls.oskari.wms.GetGtWMSCapabilities;
+import fi.nls.oskari.wmts.WMTSCapabilitiesParser;
+import fi.nls.oskari.wmts.domain.WMTSCapabilities;
 import wbidp.oskari.helpers.LayerHelper;
 import wbidp.oskari.helpers.LayerJSONHelper;
 
@@ -35,7 +41,6 @@ public class CKANDataParser {
 
     private static final Logger LOG = LogFactory.getLogger(CKANDataParser.class);
 
-    private static final OskariMapLayerGroupService MAP_LAYER_GROUP_SERVICE = new OskariMapLayerGroupServiceIbatisImpl();
     private static final DataProviderService DATA_PROVIDER_SERVICE = new DataProviderServiceMybatisImpl();
 
     /**
@@ -193,7 +198,8 @@ public class CKANDataParser {
     }
 
     /**
-     * Parse JSON Layer API data from CKAN and add the WMS/WMTS/WFS/Esri layers to Oskari.
+     * Parse JSON Layer API data from CKAN and add the WMS/WMTS/WFS/Esri layers to
+     * Oskari.
      * 
      * @param JSONFromCKAN Layer API data from CKAN as JSON.
      * @return an ArrayList of OskariLayer objects.
@@ -234,21 +240,26 @@ public class CKANDataParser {
 
         String url = (String) resource.get("url");
         url = url.contains("?") ? url.split("\\?")[0] : url;
+        String format = (String) resource.get("format");
         String user = (resource.get("username") != null) ? (String) resource.get("username") : "";
         String pw = (resource.get("password") != null) ? (String) resource.get("password") : "";
         String currentCrs = "EPSG:3067";
 
-        switch (((String) resource.get("format")).toLowerCase()) {
+        switch ((format).toLowerCase()) {
             case "wms":
                 addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs);
                 break;
+            case "wmts":
+                addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs);
+                break;
             case "wfs":
-                addWFSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs);
+                addWFSLayers(resource, connection, url, user, pw, currentCrs);
                 break;
             case "esri rest":
+                // TODO: Add support for Esri REST
                 break;
             default:
-                LOG.info("No match for API type.");
+                LOG.info(String.format("No match for data format (%s).", format));
         }
     }
 
@@ -256,15 +267,36 @@ public class CKANDataParser {
             CapabilitiesCacheService capabilitiesService, String url, String user, String pw, String currentCrs)
             throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.3.0";
-        
+
         LOG.debug(String.format("Getting WMS cababilities from %s (version %s)", url, version));
-        org.json.JSONObject json = GetGtWMSCapabilities.getWMSCapabilities(capabilitiesService, url, user, pw,
-                version, currentCrs);
+        org.json.JSONObject json = GetGtWMSCapabilities.getWMSCapabilities(capabilitiesService, url, user, pw, version,
+                currentCrs);
         addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS);
     }
 
-    private static void addWFSLayers(JSONObject resource, Connection connection,
+    private static void addWMTSLayers(JSONObject resource, Connection connection,
             CapabilitiesCacheService capabilitiesService, String url, String user, String pw, String currentCrs)
+            throws ServiceException {
+        String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
+
+        LOG.debug(String.format("Getting WMTS cababilities from %s (version %s)", url, version));
+        OskariLayerCapabilities caps = capabilitiesService.getCapabilities(url, OskariLayer.TYPE_WMTS, version, user, pw);
+        String capabilitiesXML = caps.getData();
+        WMTSCapabilities wmtsCaps;
+        try {
+            wmtsCaps = WMTSCapabilitiesParser.parseCapabilities(capabilitiesXML);
+            if (caps.getId() == null) {
+                capabilitiesService.save(caps);
+            }
+            org.json.JSONObject resultJSON = WMTSCapabilitiesParser.asJSON(wmtsCaps, url, currentCrs);
+            JSONHelper.putValue(resultJSON, "xml", capabilitiesXML);
+            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS);
+        } catch (IllegalArgumentException | XMLStreamException e) {
+            LOG.error("Error while parsing WMTS capabilities. " + e);
+        }
+    }
+
+    private static void addWFSLayers(JSONObject resource, Connection connection, String url, String user, String pw, String currentCrs)
             throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
         
@@ -276,30 +308,30 @@ public class CKANDataParser {
     private static void addLayers(Connection connection, String url, String user, String pw, String currentCrs,
             org.json.JSONObject json, String layerType) {
         try {
-            String mainLayerName = json.getString("title");
-            org.json.JSONObject locale = LayerJSONHelper.getLocale(mainLayerName, mainLayerName, mainLayerName);
-            DataProvider dp = DATA_PROVIDER_SERVICE.findByName(mainLayerName);
+            String mainGroupName = json.has("title") ? json.getString("title") : "Random Layers";
+            org.json.JSONObject locale = LayerJSONHelper.getLocale(mainGroupName, mainGroupName, mainGroupName);
+            DataProvider dp = DATA_PROVIDER_SERVICE.findByName(mainGroupName);
             if (dp == null) {
                 dp = new DataProvider();
                 dp.setLocale(locale);
                 DATA_PROVIDER_SERVICE.insert(dp);
             }
             
-            int groupId = LayerHelper.addMainGroup(mainLayerName, mainLayerName, mainLayerName);
+            int groupId = LayerHelper.addMainGroup(mainGroupName, mainGroupName, mainGroupName);
             org.json.JSONArray layers = json.getJSONArray("layers");
             org.json.JSONArray layersToAdd = new org.json.JSONArray();
             
             for (int i = 0; i < layers.length(); i++) {
                 String layerName = layers.getJSONObject(i).getString("layerName");
                 String layerTitle = layers.getJSONObject(i).getString("title");
-                layersToAdd.put(LayerHelper.generateLayerJSON(layerType, url, layerName, mainLayerName,
+                layersToAdd.put(LayerHelper.generateLayerJSON(layerType, url, layerName, mainGroupName,
                         LayerJSONHelper.getLocale(layerTitle, layerTitle, layerTitle), false, -1,
                         null, -1.0, -1.0, null, null, null, null, null, null, false, 0, currentCrs, LayerHelper.VERSION_WMS130,
                         user, pw, null, null, LayerJSONHelper.getRolePermissionsJSON(), LayerJSONHelper.getForceProxyAttributeJSON()));
             }
             
             int addedCount = LayerHelper.addLayers(layersToAdd, LayerHelper.getLayerGroups(groupId), true, connection);
-            LOG.debug(String.format("Added %d layer(s) from %s under group %s.", addedCount, url, mainLayerName));
+            LOG.debug(String.format("Added %d layer(s) from %s under group %s.", addedCount, url, mainGroupName));
         } catch (JSONException e) {
             LOG.error("Unable to read layer data from json! " + e);
         }
