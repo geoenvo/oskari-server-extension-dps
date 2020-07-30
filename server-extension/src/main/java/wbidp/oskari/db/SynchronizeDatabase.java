@@ -134,15 +134,18 @@ public class SynchronizeDatabase {
     }
 
     public void synchronizeLayersFromCKAN() {
-        Connection ckanConnection = connectToDatabase("ckan.integration.db.url", "ckan.integration.db.username", "ckan.integration.db.password");
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
-
-        if (ckanConnection == null || oskariConnection == null) {
-            LOG.error("Unable to synchronize CKAN layers to Oskari.");
+        
+        if (oskariConnection == null) {
+            LOG.error("Unable to synchronize CKAN users to Oskari.");
             return;
         }
 
-        closeAllDbConnections(ckanConnection, oskariConnection);
+        String CKANLayersDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.layers", "/tmp/ckandatasetsdump.jsonl");
+        String CKANLayersDump = CKANDataParser.readCKANDumpFile(CKANLayersDumpFile);
+        CKANDataParser.parseJSONAndAddLayers(CKANLayersDump, oskariConnection);
+
+        closeAllDbConnections(oskariConnection);
     }
 
     private void addUsers(ArrayList<CKANUser> users) throws ServiceException {
@@ -201,10 +204,8 @@ public class SynchronizeDatabase {
     }
 
     private void truncateData(Connection connection, String tableName) throws SQLException {
-        String sql = "TRUNCATE TABLE ? CASCADE;";
+        String sql = "TRUNCATE TABLE " + tableName + " CASCADE;";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, tableName);
-
             LOG.debug("Executing:", ps.toString());
             int i = ps.executeUpdate();
             LOG.debug("Truncate result:", i);
