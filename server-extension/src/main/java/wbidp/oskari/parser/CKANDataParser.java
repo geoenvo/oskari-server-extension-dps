@@ -216,11 +216,12 @@ public class CKANDataParser {
                     try {
                         CKANLayerJSON = (JSONObject) parser.parse(CKANLayerJSONStr);
                         JSONArray resources = (JSONArray) CKANLayerJSON.get("resources");
+                        boolean isPrivateResource = (boolean) CKANLayerJSON.get("private");
 
                         Iterator it = resources.iterator();
                         while (it.hasNext()) {
                             JSONObject resource = (JSONObject) it.next();
-                            addLayersFromJSONResource(resource, connection);
+                            addLayersFromJSONResource(resource, isPrivateResource, connection);
                         }
                     } catch (Exception e) {
                         LOG.error("Unable to parse CKAN Layer API JSON! " + e);
@@ -232,27 +233,26 @@ public class CKANDataParser {
         }
     }
 
-    private static void addLayersFromJSONResource(JSONObject resource, Connection connection) throws ServiceException {
+    private static void addLayersFromJSONResource(JSONObject resource, boolean isPrivateResource, Connection connection) throws ServiceException {
         CapabilitiesCacheService capabilitiesService = OskariComponentManager
                 .getComponentOfType(CapabilitiesCacheService.class);
 
         String url = (String) resource.get("url");
         url = url.contains("?") ? url.split("\\?")[0] : url;
-        String format = (String) resource.get("format");
+        String format = (resource.get("format") != null) ? (String) resource.get("format") : "No format defined!";
         String user = (resource.get("username") != null) ? (String) resource.get("username") : "";
         String pw = (resource.get("password") != null) ? (String) resource.get("password") : "";
         String currentCrs = "EPSG:3067";
-        boolean isPrivateAPI = (boolean) resource.get("private");
 
         switch ((format).toLowerCase()) {
             case "wms":
-                addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateAPI);
+                addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource);
                 break;
             case "wmts":
-                addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateAPI);
+                addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource);
                 break;
             case "wfs":
-                addWFSLayers(resource, connection, url, user, pw, currentCrs, isPrivateAPI);
+                addWFSLayers(resource, connection, url, user, pw, currentCrs, isPrivateResource);
                 break;
             case "esri rest":
                 // TODO: Add support for Esri REST
@@ -264,19 +264,21 @@ public class CKANDataParser {
 
     private static void addWMSLayers(JSONObject resource, Connection connection,
             CapabilitiesCacheService capabilitiesService, String url, String user, String pw, 
-            String currentCrs, boolean isPrivateAPI) throws ServiceException {
+            String currentCrs, boolean isPrivateResource) throws ServiceException {
+        // Get/Set WMS API version, defaults to 1.3.0
+        // Supported WMS versions in Oskari: 1.1.1, 1.3.0
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.3.0";
 
         LOG.debug(String.format("Getting WMS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWMSCapabilities.getWMSCapabilities(capabilitiesService, url, user, pw, version,
                 currentCrs);
-        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS, isPrivateAPI);
+        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS, isPrivateResource);
     }
 
     private static void addWMTSLayers(JSONObject resource, Connection connection,
             CapabilitiesCacheService capabilitiesService, String url, String user, String pw, 
-            String currentCrs, boolean isPrivateAPI) throws ServiceException {
-        String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
+            String currentCrs, boolean isPrivateResource) throws ServiceException {
+        String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.0.0";
 
         LOG.debug(String.format("Getting WMTS capabilities from %s (version %s)", url, version));
         OskariLayerCapabilities caps = capabilitiesService.getCapabilities(url, OskariLayer.TYPE_WMTS, version, user, pw);
@@ -289,23 +291,25 @@ public class CKANDataParser {
             }
             org.json.JSONObject resultJSON = WMTSCapabilitiesParser.asJSON(wmtsCaps, url, currentCrs);
             JSONHelper.putValue(resultJSON, "xml", capabilitiesXML);
-            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS, isPrivateAPI);
+            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS, isPrivateResource);
         } catch (IllegalArgumentException | XMLStreamException e) {
             LOG.error("Error while parsing WMTS capabilities. " + e);
         }
     }
 
     private static void addWFSLayers(JSONObject resource, Connection connection, String url, String user, String pw, 
-            String currentCrs, boolean isPrivateAPI) throws ServiceException {
+            String currentCrs, boolean isPrivateResource) throws ServiceException {
+        // Get/Set WFS API version, defaults to 1.1.0
+        // Supported WFS versions in Oskari: 1.1.0, 2.0.0, 3.0.0
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
         
         LOG.debug(String.format("Getting WFS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWFSCapabilities.getWFSCapabilities(url, user, pw, version, currentCrs);
-        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS, isPrivateAPI);
+        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS, isPrivateResource);
     }
 
     private static void addLayers(Connection connection, String url, String user, String pw, String currentCrs,
-            org.json.JSONObject json, String layerType, boolean isPrivateAPI) {
+            org.json.JSONObject json, String layerType, boolean isPrivateResource) {
         try {
             String mainGroupName = json.has("title") ? json.getString("title") : "Random Layers";
             org.json.JSONObject locale = LayerJSONHelper.getLocale(mainGroupName, mainGroupName, mainGroupName);
@@ -323,8 +327,8 @@ public class CKANDataParser {
             // TODO: Define permissions JSON according to CKAN roles!
             org.json.JSONObject layerPermissions = LayerJSONHelper.getRolePermissionsJSON();
             
-            // If API is marked private in CKAN, only allow admins to see it!
-            if (isPrivateAPI) {
+            // If resource is marked private in CKAN, only allow admins to see it!
+            if (isPrivateResource) {
                 layerPermissions = LayerJSONHelper.getAdminPermissionsJSON();
             }
             
