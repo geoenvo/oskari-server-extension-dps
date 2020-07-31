@@ -269,16 +269,19 @@ public class CKANDataParser {
         // Supported WMS versions in Oskari: 1.1.1, 1.3.0
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.3.0";
 
+        String mainGroupName = (resource.get("name") != null) ? (String) resource.get("name") : "Misc Layers";
         LOG.debug(String.format("Getting WMS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWMSCapabilities.getWMSCapabilities(capabilitiesService, url, user, pw, version,
                 currentCrs);
-        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS, isPrivateResource);
+        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS, isPrivateResource, mainGroupName);
     }
 
     private static void addWMTSLayers(JSONObject resource, Connection connection,
             CapabilitiesCacheService capabilitiesService, String url, String user, String pw, 
             String currentCrs, boolean isPrivateResource) throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.0.0";
+
+        String mainGroupName = (resource.get("name") != null) ? (String) resource.get("name") : "Misc Layers";
 
         LOG.debug(String.format("Getting WMTS capabilities from %s (version %s)", url, version));
         OskariLayerCapabilities caps = capabilitiesService.getCapabilities(url, OskariLayer.TYPE_WMTS, version, user, pw);
@@ -291,7 +294,7 @@ public class CKANDataParser {
             }
             org.json.JSONObject resultJSON = WMTSCapabilitiesParser.asJSON(wmtsCaps, url, currentCrs);
             JSONHelper.putValue(resultJSON, "xml", capabilitiesXML);
-            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS, isPrivateResource);
+            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS, isPrivateResource, mainGroupName);
         } catch (IllegalArgumentException | XMLStreamException e) {
             LOG.error("Error while parsing WMTS capabilities. " + e);
         }
@@ -303,15 +306,16 @@ public class CKANDataParser {
         // Supported WFS versions in Oskari: 1.1.0, 2.0.0, 3.0.0
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
         
+        String mainGroupName = (resource.get("name") != null) ? (String) resource.get("name") : "Misc Layers";
         LOG.debug(String.format("Getting WFS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWFSCapabilities.getWFSCapabilities(url, user, pw, version, currentCrs);
-        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS, isPrivateResource);
+        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS, isPrivateResource, mainGroupName);
     }
 
     private static void addLayers(Connection connection, String url, String user, String pw, String currentCrs,
-            org.json.JSONObject json, String layerType, boolean isPrivateResource) {
+            org.json.JSONObject json, String layerType, boolean isPrivateResource, String mainGroupName) {
         try {
-            String mainGroupName = json.has("title") ? json.getString("title") : "Random Layers";
+            mainGroupName = json.has("title") ? json.getString("title") : mainGroupName;
             org.json.JSONObject locale = LayerJSONHelper.getLocale(mainGroupName, mainGroupName, mainGroupName);
             DataProvider dp = DATA_PROVIDER_SERVICE.findByName(mainGroupName);
             if (dp == null) {
