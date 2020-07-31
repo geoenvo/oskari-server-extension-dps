@@ -199,10 +199,6 @@ public class SynchronizeDatabase {
         userService.storeCKANOrganizationsAsRoles(roleSet);
     }
 
-    private void addLayers(Connection connection) throws SQLException {
-        // TODO: Read layer APIs from CKAN and add to Oskari DB
-    }
-
     private void truncateData(Connection connection, String tableName) throws SQLException {
         String sql = "TRUNCATE TABLE " + tableName + " CASCADE;";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
