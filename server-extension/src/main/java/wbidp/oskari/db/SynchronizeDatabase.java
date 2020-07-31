@@ -44,6 +44,10 @@ public class SynchronizeDatabase {
         return connection;
     }
 
+    /**
+     * Read organizations from the defined CKAN JSON file and synchronize
+     * them with Oskari roles.
+     */
     public void synchronizeRolesFromCKAN() {
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
         boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
@@ -72,6 +76,10 @@ public class SynchronizeDatabase {
         closeAllDbConnections(oskariConnection);
     }
 
+    /**
+     * Read users from the defined CKAN JSON file and synchronize
+     * them with Oskari users.
+     */
     public void synchronizeUsersFromCKAN() {
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
         boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
@@ -99,6 +107,10 @@ public class SynchronizeDatabase {
         closeAllDbConnections(oskariConnection);
     }
 
+    /**
+     * Read users and organizations from the defined CKAN JSON file and synchronize
+     * them with Oskari users and roles.
+     */
     public void synchronizeUsersWithRolesFromCKAN() {
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
         boolean truncateData = PropertyUtil.getOptional("ckan.integration.db.truncate", false);
@@ -133,6 +145,10 @@ public class SynchronizeDatabase {
         closeAllDbConnections(oskariConnection);
     }
 
+    /**
+     * Read layer API data from the defined CKAN JSON file, read API capabilities 
+     * and add all layers from supported API's to Oskari.
+     */
     public void synchronizeLayersFromCKAN() {
         Connection oskariConnection = connectToDatabase("db.url", "db.username", "db.password");
         
