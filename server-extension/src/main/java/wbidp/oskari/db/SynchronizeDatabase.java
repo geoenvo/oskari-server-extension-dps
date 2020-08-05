@@ -194,6 +194,10 @@ public class SynchronizeDatabase {
                         userRoles.add(String.valueOf(userService.getRoleByName(organization.getName()).getId()));
                     }
                 });
+                // If user is marked sysadmin in CKAN, grant Admin-role in Oskari also
+                if (user.isCKANSysAdmin()) {
+                    userRoles.add(String.valueOf(userService.getRoleByName("Admin").getId()));
+                }
                 String[] roles = new String[userRoles.size()];
                 roles = userRoles.toArray(roles);
                 User existingUser = userService.getUser(user.getScreenname());
@@ -201,6 +205,7 @@ public class SynchronizeDatabase {
                     userService.createCKANUser(user, roles);
                 } else {
                     user.setId(existingUser.getId());
+                    userService.updateUserPassword(user.getScreenname(), user.getCKANPasswordHash());
                     userService.modifyUserwithRoles(user, roles);
                 }
             } catch (ServiceException se) {
