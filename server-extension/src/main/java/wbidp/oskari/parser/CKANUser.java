@@ -10,6 +10,7 @@ import fi.nls.oskari.domain.User;
  */
 public class CKANUser extends User  {
     private String CKANPasswordHash = "";
+    private boolean CKANSysAdmin = false;
 
     public void setCKANPasswordHash(String CKANPasswordHash) {
         this.CKANPasswordHash = CKANPasswordHash;
@@ -17,5 +18,13 @@ public class CKANUser extends User  {
 
     public String getCKANPasswordHash() {
         return CKANPasswordHash;
+    }
+
+    public void setCKANSysAdmin(boolean CKANSysAdmin) {
+        this.CKANSysAdmin = CKANSysAdmin;
+    }
+
+    public boolean isCKANSysAdmin() {
+        return CKANSysAdmin;
     }
 }

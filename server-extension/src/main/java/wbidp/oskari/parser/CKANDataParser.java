@@ -57,6 +57,8 @@ public class CKANDataParser {
         String CKANUserEmail = (String) CKANUserJSON.get("email");
         String CKANUserPasswordHash = (String) CKANUserJSON.get("password_hash");
         String CKANUserFullname = (String) CKANUserJSON.get("fullname");
+        boolean CKANSysAdmin = (CKANUserJSON.get("sysadmin") != null) ? (boolean) CKANUserJSON.get("sysadmin") : false;
+        user.setCKANSysAdmin(CKANSysAdmin);
         user.setScreenname(CKANUserName);
         user.setUuid(CKANUserUuid);
         if ((CKANUserEmail != null) && !(CKANUserEmail.isEmpty())) {
