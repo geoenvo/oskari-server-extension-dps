@@ -190,13 +190,18 @@ public class SynchronizeDatabase {
             try {
                 ArrayList<String> userRoles = new ArrayList<>();
                 organizations.forEach(organization -> {
-                    if (organization.getUsers().contains(user)) {
-                        userRoles.add(String.valueOf(userService.getRoleByName(organization.getName()).getId()));
-                    }
+                    for (User orgUser : organization.getUsers()) {
+                        if (orgUser.getScreenname().equals(user.getScreenname())) {
+                            userRoles.add(String.valueOf(userService.getRoleByName(organization.getName()).getId()));
+                        }
+                     }
                 });
-                // If user is marked sysadmin in CKAN, grant Admin-role in Oskari also
+                // If the user is marked sysadmin in CKAN, grant Admin-role in Oskari also.
+                // Otherwise, grant the User-role.
                 if (user.isCKANSysAdmin()) {
                     userRoles.add(String.valueOf(userService.getRoleByName("Admin").getId()));
+                } else {
+                    userRoles.add(String.valueOf(userService.getRoleByName("User").getId()));
                 }
                 String[] roles = new String[userRoles.size()];
                 roles = userRoles.toArray(roles);
