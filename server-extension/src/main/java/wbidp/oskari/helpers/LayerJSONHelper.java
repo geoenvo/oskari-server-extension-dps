@@ -33,6 +33,27 @@ public class LayerJSONHelper {
         return json;
     }
 
+    public static JSONObject getRolePermissionsJSONForRoleAndAdmin(String roleName) throws JSONException {
+        JSONObject json = new JSONObject();
+
+        JSONArray adminRights = new JSONArray();
+        adminRights.put("PUBLISH");
+        adminRights.put("VIEW_LAYER");
+        adminRights.put("VIEW_PUBLISHED");
+        adminRights.put("EDIT_LAYER_CONTENT");
+        adminRights.put("DOWNLOAD");
+        json.put("Admin", adminRights);
+
+        JSONArray roleRights = new JSONArray();
+        roleRights.put("PUBLISH");
+        roleRights.put("VIEW_LAYER");
+        roleRights.put("VIEW_PUBLISHED");
+        roleRights.put("DOWNLOAD");
+        json.put(roleName, roleRights);
+
+        return json;
+    }
+
     public static JSONObject getRolePermissionsJSON() throws JSONException {
         JSONObject json = new JSONObject();
 
@@ -40,12 +61,15 @@ public class LayerJSONHelper {
         adminRights.put("PUBLISH");
         adminRights.put("VIEW_LAYER");
         adminRights.put("VIEW_PUBLISHED");
+        adminRights.put("EDIT_LAYER_CONTENT");
+        adminRights.put("DOWNLOAD");
         json.put("Admin", adminRights);
 
         JSONArray userRights = new JSONArray();
         userRights.put("PUBLISH");
         userRights.put("VIEW_LAYER");
         userRights.put("VIEW_PUBLISHED");
+        userRights.put("DOWNLOAD");
         json.put("User", userRights);
 
         JSONArray guestRights = new JSONArray();
@@ -63,6 +87,8 @@ public class LayerJSONHelper {
         adminRights.put("PUBLISH");
         adminRights.put("VIEW_LAYER");
         adminRights.put("VIEW_PUBLISHED");
+        adminRights.put("EDIT_LAYER_CONTENT");
+        adminRights.put("DOWNLOAD");
         json.put("Admin", adminRights);
 
         return json;
