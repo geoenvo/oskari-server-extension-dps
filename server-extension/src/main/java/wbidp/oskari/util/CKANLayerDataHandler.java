@@ -141,6 +141,9 @@ public class CKANLayerDataHandler {
             if (isPrivateResource) {
                 layerPermissions = LayerJSONHelper.getAdminPermissionsJSON();
             }
+
+            // TODO: Define layer attributes here, if needed
+            org.json.JSONObject layerAttributes = new org.json.JSONObject();
             
             for (int i = 0; i < layers.length(); i++) {
                 String layerName = layers.getJSONObject(i).getString("layerName");
@@ -148,7 +151,7 @@ public class CKANLayerDataHandler {
                 layersToAdd.put(LayerHelper.generateLayerJSON(layerType, url, layerName, mainGroupName,
                         LayerJSONHelper.getLocale(layerTitle, layerTitle, layerTitle), false, -1,
                         null, -1.0, -1.0, null, null, null, null, null, null, false, 0, currentCrs, LayerHelper.VERSION_WMS130,
-                        user, pw, null, null, layerPermissions, LayerJSONHelper.getForceProxyAttributeJSON()));
+                        user, pw, null, null, layerPermissions, layerAttributes));
             }
             
             int addedCount = LayerHelper.addLayers(layersToAdd, LayerHelper.getLayerGroups(groupId), true, connection);
