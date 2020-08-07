@@ -206,7 +206,8 @@ public class CKANDataParser {
                         Iterator it = resources.iterator();
                         while (it.hasNext()) {
                             JSONObject resource = (JSONObject) it.next();
-                            CKANLayerDataHandler.addLayersFromCKANJSONResource(resource, isPrivateResource, connection);
+                            CKANOrganization organization = getRoleFromJSON((JSONObject) parser.parse((String) resource.get("organization")));
+                            CKANLayerDataHandler.addLayersFromCKANJSONResource(resource, isPrivateResource, connection, organization);
                         }
                     } catch (Exception e) {
                         LOG.error("Unable to parse CKAN Layer API JSON! " + e);
