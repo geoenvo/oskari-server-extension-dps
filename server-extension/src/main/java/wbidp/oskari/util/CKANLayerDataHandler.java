@@ -134,17 +134,13 @@ public class CKANLayerDataHandler {
             int groupId = LayerHelper.addMainGroup(mainGroupName, mainGroupName, mainGroupName);
             org.json.JSONArray layers = json.getJSONArray("layers");
             org.json.JSONArray layersToAdd = new org.json.JSONArray();
-            
-            org.json.JSONObject layerPermissions = LayerJSONHelper.getRolePermissionsJSONForRoleAndAdmin(organization.getName())
-            
+            org.json.JSONObject layerPermissions = LayerJSONHelper.getRolePermissionsJSONForRoleAndAdmin(organization.getName());
             // If resource is marked private in CKAN, only allow admins to see it!
             if (isPrivateResource) {
                 layerPermissions = LayerJSONHelper.getAdminPermissionsJSON();
             }
-
             // TODO: Define layer attributes here, if needed
             org.json.JSONObject layerAttributes = new org.json.JSONObject();
-            
             for (int i = 0; i < layers.length(); i++) {
                 String layerName = layers.getJSONObject(i).getString("layerName");
                 String layerTitle = layers.getJSONObject(i).getString("title");
@@ -153,7 +149,6 @@ public class CKANLayerDataHandler {
                         null, -1.0, -1.0, null, null, null, null, null, null, false, 0, currentCrs, LayerHelper.VERSION_WMS130,
                         user, pw, null, null, layerPermissions, layerAttributes));
             }
-            
             int addedCount = LayerHelper.addLayers(layersToAdd, LayerHelper.getLayerGroups(groupId), true, connection);
             LOG.debug(String.format("Added %d layer(s) from %s to group %s.", addedCount, url, mainGroupName));
         } catch (JSONException e) {

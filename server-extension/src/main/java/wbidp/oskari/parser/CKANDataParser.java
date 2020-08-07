@@ -95,14 +95,17 @@ public class CKANDataParser {
 
         String CKANOrgName = (String) CKANOrgJSON.get("name");
         String CKANOrgUuid = (String) CKANOrgJSON.get("id");
-        JSONArray CKANOrgUsersJSON = (JSONArray) CKANOrgJSON.get("users");
         org.setName(CKANOrgName);
         org.setUuid(CKANOrgUuid);
-        Iterator it = CKANOrgUsersJSON.iterator();
-        while (it.hasNext()) {
-            JSONObject CKANUserJSON = (JSONObject) it.next();
-            CKANUser user = getUserFromJSON(CKANUserJSON);
-            org.addUser(user);
+
+        if (CKANOrgJSON.get("users") != null) {
+            JSONArray CKANOrgUsersJSON = (JSONArray) CKANOrgJSON.get("users");
+            Iterator it = CKANOrgUsersJSON.iterator();
+            while (it.hasNext()) {
+                JSONObject CKANUserJSON = (JSONObject) it.next();
+                CKANUser user = getUserFromJSON(CKANUserJSON);
+                org.addUser(user);
+            }
         }
 
         return org;
@@ -202,11 +205,11 @@ public class CKANDataParser {
                         CKANLayerJSON = (JSONObject) parser.parse(CKANLayerJSONStr);
                         JSONArray resources = (JSONArray) CKANLayerJSON.get("resources");
                         boolean isPrivateResource = (boolean) CKANLayerJSON.get("private");
+                        CKANOrganization organization = getRoleFromJSON((JSONObject) CKANLayerJSON.get("organization"));
 
                         Iterator it = resources.iterator();
                         while (it.hasNext()) {
                             JSONObject resource = (JSONObject) it.next();
-                            CKANOrganization organization = getRoleFromJSON((JSONObject) parser.parse((String) resource.get("organization")));
                             CKANLayerDataHandler.addLayersFromCKANJSONResource(resource, isPrivateResource, connection, organization);
                         }
                     } catch (Exception e) {
