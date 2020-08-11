@@ -51,6 +51,11 @@ public class LayerJSONHelper {
         roleRights.put("DOWNLOAD");
         json.put(roleName, roleRights);
 
+        JSONArray guestRights = new JSONArray();
+        guestRights.put("VIEW_LAYER");
+        guestRights.put("VIEW_PUBLISHED");
+        json.put("Guest", guestRights);
+
         return json;
     }
 
