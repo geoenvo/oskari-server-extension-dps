@@ -95,7 +95,7 @@ public class CKANLayerDataHandler {
             case "shp":
                 addShpFileAsLayer(resource, connection, url, user, pw, currentCrs, isPrivateResource, organization);
                 break;
-            case "geotiff":
+            case "tiff":
                 // TODO: Add support for GeoTIFF
                 break;
             default:
@@ -197,7 +197,7 @@ public class CKANLayerDataHandler {
         String gsPsw   = PropertyUtil.get("geoserver.password", "geoserver");
         String storeName;
         if (resource.get("name") != null) {
-            storeName = ((String) resource.get("name")).toLowerCase().split("\\.")[0];
+            storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
         } else {
             storeName = "shpres";
         }
@@ -221,7 +221,7 @@ public class CKANLayerDataHandler {
             String responseBody = null;
 
             HttpPost httpPost = new HttpPost(String.format("%s/rest/workspaces", gsUrl));
-            httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", organization.getName()), ContentType.create("text/xml")));
+            httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", organization.getName().replaceAll("[^a-zA-Z0-9]+", "_")), ContentType.create("text/xml")));
             httpPost.setHeader("Authorization", authHeaderValue);
             LOG.info(String.format("Executing request " + httpPost.getRequestLine()));
             responseBody = httpclient.execute(httpPost, responseHandler);
