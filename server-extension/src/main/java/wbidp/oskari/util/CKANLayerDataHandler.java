@@ -1,9 +1,37 @@
 package wbidp.oskari.util;
 
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 
 import javax.xml.stream.XMLStreamException;
 
+import fi.nls.oskari.geoserver.GeoserverPopulator;
+import fi.nls.oskari.map.myplaces.service.GeoServerProxyService;
+import fi.nls.oskari.util.PropertyUtil;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.FileEntity;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
 import org.json.simple.JSONObject;
 
@@ -63,6 +91,12 @@ public class CKANLayerDataHandler {
                 break;
             case "esri rest":
                 // TODO: Add support for Esri REST
+                break;
+            case "shp":
+                addShpFileAsLayer(resource, connection, url, user, pw, currentCrs, isPrivateResource, organization);
+                break;
+            case "geotiff":
+                // TODO: Add support for GeoTIFF
                 break;
             default:
                 LOG.info(String.format("No match for data format (%s).", format));
@@ -153,6 +187,62 @@ public class CKANLayerDataHandler {
             LOG.debug(String.format("Added %d layer(s) from %s to group %s.", addedCount, url, mainGroupName));
         } catch (JSONException e) {
             LOG.error("Unable to read layer data from json! " + e);
+        }
+    }
+
+    private static void addShpFileAsLayer(JSONObject resource, Connection connection, String url, String user, String pw,
+    String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
+        String gsUrl  = PropertyUtil.get("geoserver.url", "http://localhost:8080/geoserver");
+        String gsUser = PropertyUtil.get("geoserver.user", "admin");
+        String gsPsw   = PropertyUtil.get("geoserver.password", "geoserver");
+        String storeName;
+        if (resource.get("name") != null) {
+            storeName = ((String) resource.get("name")).toLowerCase().split("\\.")[0];
+        } else {
+            storeName = "shpres";
+        }
+
+        String auth = gsUser + ":" + gsPsw;
+        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
+        String authHeaderValue = "Basic " + new String(encodedAuth);
+
+        try {
+            CloseableHttpClient httpclient = HttpClients.createDefault();
+            // Create a custom response handler
+            ResponseHandler<String> responseHandler = response -> {
+                int status = response.getStatusLine().getStatusCode();
+                if ((status >= 200 && status < 300) || status == 401) {
+                    HttpEntity entity = response.getEntity();
+                    return entity != null ? EntityUtils.toString(entity) : null;
+                } else {
+                    throw new ClientProtocolException("Unexpected response status: " + status);
+                }
+            };
+            String responseBody = null;
+
+            HttpPost httpPost = new HttpPost(String.format("%s/rest/workspaces", gsUrl));
+            httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", organization.getName()), ContentType.create("text/xml")));
+            httpPost.setHeader("Authorization", authHeaderValue);
+            LOG.info(String.format("Executing request " + httpPost.getRequestLine()));
+            responseBody = httpclient.execute(httpPost, responseHandler);
+            LOG.info(String.format("Response from GeoServer: %s", responseBody.toString()));
+
+            LOG.info(String.format("Getting shp file from: %s", url));
+            InputStream in = new URL(url).openStream();
+            Files.copy(in, Paths.get("/tmp/temp.zip"), StandardCopyOption.REPLACE_EXISTING);
+            File shpFile = new File("/tmp/temp.zip");
+
+            httpclient = HttpClients.createDefault();
+            HttpPut httpPut = new HttpPut(String.format("%s/rest/workspaces/%s/datastores/%s/file.shp", gsUrl, organization.getName(), storeName));
+            httpPut.setEntity(new FileEntity(shpFile, ContentType.create("application/zip")));
+            httpPut.setHeader("Authorization", authHeaderValue);
+            LOG.info(String.format("Executing request " + httpPut.getRequestLine()));
+            responseBody = httpclient.execute(httpPut, responseHandler);
+            LOG.info(String.format("Response from GeoServer: %s", responseBody.toString()));
+            resource.put("name", String.format("SHP-layers (%s)", organization.getName()));
+            addWFSLayers(resource, connection, String.format("%s/%s/wfs", gsUrl, organization.getName()), user, pw, currentCrs, isPrivateResource, organization);
+        } catch (Exception e) {
+            LOG.error("Error while adding shapefile! " + e);
         }
     }
 }
