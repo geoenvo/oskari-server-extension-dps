@@ -200,13 +200,14 @@ public class CKANLayerDataHandler {
         boolean publishWFS = PropertyUtil.getOptional("ckan.integration.shp.publish.wfs", true);
         ResponseHandler<String> responseHandler = LayerHelper.generateGeoServerResponseHandler();
 
+        String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
         if (resource.get("name") != null) {
             storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
         }
 
         try {
-            createGeoServerWorkspace(organization.getName(), responseHandler, gsUrl);
+            createGeoServerWorkspace(workspaceName, responseHandler, gsUrl);
 
             LOG.info(String.format("Getting shp file from: %s", url));
             String filename = url.substring(url.lastIndexOf("/") + 1);
@@ -214,15 +215,15 @@ public class CKANLayerDataHandler {
             InputStream in = new URL(url).openStream();
             Files.copy(in, Paths.get(dataPath), StandardCopyOption.REPLACE_EXISTING);
             File shpFileZip = new File(dataPath);
-            FileHelper.unzipArchive(dataDestDir, shpFileZip);
+            FileHelper.unzipArchive(dataDestDir, new File(dataPath));
 
-            uploadShpFileToGeoServer(organization.getName(), storeName, responseHandler, gsUrl, shpFileZip);
+            uploadShpFileToGeoServer(workspaceName, storeName, responseHandler, gsUrl, shpFileZip);
 
-            String wmsUrl = String.format("%s/%s/wms", gsUrl, organization.getName());
-            resource.put("name", String.format("%s (local shp data)", organization.getDisplayName()));
+            String wmsUrl = String.format("%s/%s/wms", gsUrl, workspaceName);
+            resource.put("name", String.format("%s (local shp data)", organization.getTitle()));
             addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource, organization);
             if (publishWFS) {
-                String wfsUrl = String.format("%s/%s/wms", gsUrl, organization.getName());
+                String wfsUrl = String.format("%s/%s/wfs", gsUrl, workspaceName);
                 addWFSLayers(resource, connection, wfsUrl, user, pw, currentCrs, isPrivateResource, organization);
             }
         } catch (Exception e) {
@@ -235,7 +236,7 @@ public class CKANLayerDataHandler {
         CloseableHttpClient httpclient = HttpClients.createDefault();
         String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
         HttpPost httpPost = new HttpPost(String.format("%s/rest/workspaces", gsUrl));
-        httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", workspaceName.replaceAll("[^a-zA-Z0-9]+", "_")), ContentType.create("text/xml")));
+        httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", workspaceName), ContentType.create("text/xml")));
         httpPost.setHeader("Authorization", authHeaderValue);
 
         LOG.info(String.format("Creating GeoServer workspace (request: %s) ", httpPost.getRequestLine()));
