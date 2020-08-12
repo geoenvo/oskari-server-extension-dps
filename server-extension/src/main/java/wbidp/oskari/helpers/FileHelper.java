@@ -13,7 +13,13 @@ import java.util.zip.ZipInputStream;
 public class FileHelper {
     private static final Logger LOG = LogFactory.getLogger(FileHelper.class);
 
-    public static void unzipFile(String pathToZip, File destDir) {
+    /**
+     * Processes and unzips a zip-archive to the defined path.
+     *
+     * @param pathToZip the path to the original zip-archive on disk
+     * @param destDir the destination for the unzipped file(s)/folder(s)
+     */
+    public static void unzipArchive(String pathToZip, File destDir) {
         byte[] buffer = new byte[1024];
         try {
             ZipInputStream zis = new ZipInputStream(new FileInputStream(pathToZip));
@@ -39,7 +45,7 @@ public class FileHelper {
 
     }
 
-    public static File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
+    private static File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
         File destFile = new File(destinationDir, zipEntry.getName());
 
         String destDirPath = destinationDir.getCanonicalPath();
