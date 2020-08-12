@@ -1,5 +1,6 @@
 package wbidp.oskari.helpers;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -10,6 +11,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import fi.nls.oskari.util.PropertyUtil;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -677,5 +684,41 @@ public class LayerHelper {
         }
 
         return MAP_LAYER_GROUP_SERVICE.insert(subGroup);
+    }
+
+    /**
+     * Returns an auth header for use when accessing GeoServer.
+     *
+     * @return
+     */
+    public static String generateGeoServerAuthHeader() {
+        String gsUser = PropertyUtil.get("geoserver.user", "admin");
+        String gsPsw   = PropertyUtil.get("geoserver.password", "geoserver");
+        String auth = gsUser + ":" + gsPsw;
+
+        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
+        String authHeaderValue = "Basic " + new String(encodedAuth);
+
+        return authHeaderValue;
+    }
+
+    /**
+     * Returns a ResponseHandler for use when doing operations against the
+     * GeoServer REST API.
+     *
+     * @return
+     */
+    public static ResponseHandler<String> generateGeoServerResponseHandler() {
+        ResponseHandler<String> responseHandler = response -> {
+            int status = response.getStatusLine().getStatusCode();
+            if ((status >= 200 && status < 300) || status == 401) {
+                HttpEntity entity = response.getEntity();
+                return entity != null ? EntityUtils.toString(entity) : null;
+            } else {
+                throw new ClientProtocolException("Unexpected response status: " + status);
+            }
+        };
+
+        return responseHandler;
     }
 }

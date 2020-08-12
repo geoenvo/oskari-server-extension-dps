@@ -50,6 +50,7 @@ import fi.nls.oskari.wfs.GetGtWFSCapabilities;
 import fi.nls.oskari.wms.GetGtWMSCapabilities;
 import fi.nls.oskari.wmts.WMTSCapabilitiesParser;
 import fi.nls.oskari.wmts.domain.WMTSCapabilities;
+import wbidp.oskari.helpers.FileHelper;
 import wbidp.oskari.helpers.LayerHelper;
 import wbidp.oskari.helpers.LayerJSONHelper;
 import wbidp.oskari.parser.CKANDataParser;
@@ -68,9 +69,9 @@ public class CKANLayerDataHandler {
      * @param connection the database connection to Oskari.
      * @throws ServiceException
      */
-    public static void addLayersFromCKANJSONResource(JSONObject resource, boolean isPrivateResource, Connection connection, CKANOrganization organization) throws ServiceException {
-        CapabilitiesCacheService capabilitiesService = OskariComponentManager
-                .getComponentOfType(CapabilitiesCacheService.class);
+    public static void addLayersFromCKANJSONResource(JSONObject resource, boolean isPrivateResource, Connection connection,
+                                                     CKANOrganization organization) throws ServiceException {
+        CapabilitiesCacheService capabilitiesService = OskariComponentManager.getComponentOfType(CapabilitiesCacheService.class);
 
         String url = (String) resource.get("url");
         url = url.contains("?") ? url.split("\\?")[0] : url;
@@ -93,7 +94,7 @@ public class CKANLayerDataHandler {
                 // TODO: Add support for Esri REST
                 break;
             case "shp":
-                addShpFileAsLayer(resource, connection, url, user, pw, currentCrs, isPrivateResource, organization);
+                addShpFileAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
                 break;
             case "tiff":
                 // TODO: Add support for GeoTIFF
@@ -104,8 +105,8 @@ public class CKANLayerDataHandler {
     }
 
     private static void addWMSLayers(JSONObject resource, Connection connection,
-            CapabilitiesCacheService capabilitiesService, String url, String user, String pw, 
-            String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
+                                     CapabilitiesCacheService capabilitiesService, String url, String user, String pw,
+                                     String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
         // Get/Set WMS API version, defaults to 1.3.0
         // Supported WMS versions in Oskari: 1.1.1, 1.3.0
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.3.0";
@@ -118,8 +119,8 @@ public class CKANLayerDataHandler {
     }
 
     private static void addWMTSLayers(JSONObject resource, Connection connection,
-            CapabilitiesCacheService capabilitiesService, String url, String user, String pw, 
-            String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
+                                      CapabilitiesCacheService capabilitiesService, String url, String user, String pw,
+                                      String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.0.0";
 
         String mainGroupName = (resource.get("name") != null) ? (String) resource.get("name") : "Misc Layers";
@@ -141,8 +142,8 @@ public class CKANLayerDataHandler {
         }
     }
 
-    private static void addWFSLayers(JSONObject resource, Connection connection, String url, String user, String pw, 
-            String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
+    private static void addWFSLayers(JSONObject resource, Connection connection, String url, String user, String pw,
+                                     String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
         // Get/Set WFS API version, defaults to 1.1.0
         // Supported WFS versions in Oskari: 1.1.0, 2.0.0, 3.0.0
         String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
@@ -154,7 +155,8 @@ public class CKANLayerDataHandler {
     }
 
     private static void addLayers(Connection connection, String url, String user, String pw, String currentCrs,
-            org.json.JSONObject json, String layerType, boolean isPrivateResource, String mainGroupName, CKANOrganization organization) {
+                                  org.json.JSONObject json, String layerType, boolean isPrivateResource, String mainGroupName,
+                                  CKANOrganization organization) {
         try {
             mainGroupName = json.has("title") ? json.getString("title") : mainGroupName;
             org.json.JSONObject locale = LayerJSONHelper.getLocale(mainGroupName, mainGroupName, mainGroupName);
@@ -190,59 +192,67 @@ public class CKANLayerDataHandler {
         }
     }
 
-    private static void addShpFileAsLayer(JSONObject resource, Connection connection, String url, String user, String pw,
-    String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
+    private static void addShpFileAsLayer(JSONObject resource, Connection connection, CapabilitiesCacheService capabilitiesService,
+                                          String url, String user, String pw, String currentCrs, boolean isPrivateResource,
+                                          CKANOrganization organization) throws ServiceException {
+        String dataDestDir = "/tmp";
         String gsUrl  = PropertyUtil.get("geoserver.url", "http://localhost:8080/geoserver");
-        String gsUser = PropertyUtil.get("geoserver.user", "admin");
-        String gsPsw   = PropertyUtil.get("geoserver.password", "geoserver");
-        String storeName;
+        boolean publishWFS = PropertyUtil.getOptional("ckan.integration.shp.publish.wfs", true);
+        ResponseHandler<String> responseHandler = LayerHelper.generateGeoServerResponseHandler();
+
+        String storeName = "shp_store";
         if (resource.get("name") != null) {
             storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
-        } else {
-            storeName = "shpres";
         }
 
-        String auth = gsUser + ":" + gsPsw;
-        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
-        String authHeaderValue = "Basic " + new String(encodedAuth);
-
         try {
-            CloseableHttpClient httpclient = HttpClients.createDefault();
-            // Create a custom response handler
-            ResponseHandler<String> responseHandler = response -> {
-                int status = response.getStatusLine().getStatusCode();
-                if ((status >= 200 && status < 300) || status == 401) {
-                    HttpEntity entity = response.getEntity();
-                    return entity != null ? EntityUtils.toString(entity) : null;
-                } else {
-                    throw new ClientProtocolException("Unexpected response status: " + status);
-                }
-            };
-            String responseBody = null;
-
-            HttpPost httpPost = new HttpPost(String.format("%s/rest/workspaces", gsUrl));
-            httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", organization.getName().replaceAll("[^a-zA-Z0-9]+", "_")), ContentType.create("text/xml")));
-            httpPost.setHeader("Authorization", authHeaderValue);
-            LOG.info(String.format("Executing request " + httpPost.getRequestLine()));
-            responseBody = httpclient.execute(httpPost, responseHandler);
-            LOG.info(String.format("Response from GeoServer: %s", responseBody.toString()));
+            createGeoServerWorkspace(organization.getName(), responseHandler, gsUrl);
 
             LOG.info(String.format("Getting shp file from: %s", url));
+            String filename = url.substring(url.lastIndexOf("/") + 1);
+            String dataPath = String.format("%s/%s", dataDestDir, filename);
             InputStream in = new URL(url).openStream();
-            Files.copy(in, Paths.get("/tmp/temp.zip"), StandardCopyOption.REPLACE_EXISTING);
-            File shpFile = new File("/tmp/temp.zip");
+            Files.copy(in, Paths.get(dataPath), StandardCopyOption.REPLACE_EXISTING);
+            File shpFileZip = new File(dataPath);
+            FileHelper.unzipArchive(dataDestDir, shpFileZip);
 
-            httpclient = HttpClients.createDefault();
-            HttpPut httpPut = new HttpPut(String.format("%s/rest/workspaces/%s/datastores/%s/file.shp", gsUrl, organization.getName(), storeName));
-            httpPut.setEntity(new FileEntity(shpFile, ContentType.create("application/zip")));
-            httpPut.setHeader("Authorization", authHeaderValue);
-            LOG.info(String.format("Executing request " + httpPut.getRequestLine()));
-            responseBody = httpclient.execute(httpPut, responseHandler);
-            LOG.info(String.format("Response from GeoServer: %s", responseBody.toString()));
-            resource.put("name", String.format("SHP-layers (%s)", organization.getName()));
-            addWFSLayers(resource, connection, String.format("%s/%s/wfs", gsUrl, organization.getName()), user, pw, currentCrs, isPrivateResource, organization);
+            uploadShpFileToGeoServer(organization.getName(), storeName, responseHandler, gsUrl, shpFileZip);
+
+            resource.put("name", String.format("%s (local shp data)", organization.getDisplayName()));
+            addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
+            if (publishWFS) {
+                addWFSLayers(resource, connection, String.format("%s/%s/wfs", gsUrl, organization.getName()), user, pw, currentCrs, isPrivateResource, organization);
+            }
         } catch (Exception e) {
             LOG.error("Error while adding shapefile! " + e);
         }
+    }
+
+    private static void createGeoServerWorkspace(String workspaceName, ResponseHandler<String> responseHandler,
+                                                 String gsUrl) throws IOException {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
+        HttpPost httpPost = new HttpPost(String.format("%s/rest/workspaces", gsUrl));
+        httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", workspaceName.replaceAll("[^a-zA-Z0-9]+", "_")), ContentType.create("text/xml")));
+        httpPost.setHeader("Authorization", authHeaderValue);
+
+        LOG.info(String.format("Creating GeoServer workspace (request: %s) ", httpPost.getRequestLine()));
+
+        String responseBody = httpclient.execute(httpPost, responseHandler);
+        LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
+    }
+
+    private static void uploadShpFileToGeoServer(String workspaceName, String storeName, ResponseHandler<String> responseHandler,
+                                                 String gsUrl, File shpFileZip) throws IOException {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
+        HttpPut httpPut = new HttpPut(String.format("%s/rest/workspaces/%s/datastores/%s/file.shp", gsUrl, workspaceName, storeName));
+        httpPut.setEntity(new FileEntity(shpFileZip, ContentType.create("application/zip")));
+        httpPut.setHeader("Authorization", authHeaderValue);
+
+        LOG.info(String.format("Uploading shp to GeoServer (request: %s) ", httpPut.getRequestLine()));
+
+        String responseBody = httpclient.execute(httpPut, responseHandler);
+        LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
     }
 }
