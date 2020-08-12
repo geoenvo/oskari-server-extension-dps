@@ -218,10 +218,12 @@ public class CKANLayerDataHandler {
 
             uploadShpFileToGeoServer(organization.getName(), storeName, responseHandler, gsUrl, shpFileZip);
 
+            String wmsUrl = String.format("%s/%s/wms", gsUrl, organization.getName());
             resource.put("name", String.format("%s (local shp data)", organization.getDisplayName()));
-            addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
+            addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource, organization);
             if (publishWFS) {
-                addWFSLayers(resource, connection, String.format("%s/%s/wfs", gsUrl, organization.getName()), user, pw, currentCrs, isPrivateResource, organization);
+                String wfsUrl = String.format("%s/%s/wms", gsUrl, organization.getName());
+                addWFSLayers(resource, connection, wfsUrl, user, pw, currentCrs, isPrivateResource, organization);
             }
         } catch (Exception e) {
             LOG.error("Error while adding shapefile! " + e);
