@@ -12,6 +12,7 @@ import fi.nls.oskari.domain.User;
 public class CKANOrganization extends Role {
     private String uuid;
     private Set<User> users = new LinkedHashSet<>();
+    private String displayName;
 
     public String getUuid() {
         return uuid;
@@ -29,5 +30,13 @@ public class CKANOrganization extends Role {
         if(user != null) {
             users.add(user);
         }
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 }

@@ -16,8 +16,6 @@ import org.json.simple.parser.ParseException;
 
 import fi.nls.oskari.log.LogFactory;
 import fi.nls.oskari.log.Logger;
-import fi.nls.oskari.map.layer.DataProviderService;
-import fi.nls.oskari.map.layer.DataProviderServiceMybatisImpl;
 import wbidp.oskari.util.CKANLayerDataHandler;
 
 public class CKANDataParser {
@@ -94,9 +92,11 @@ public class CKANDataParser {
         CKANOrganization org = new CKANOrganization();
 
         String CKANOrgName = (String) CKANOrgJSON.get("name");
+        String CKANDisplayName = (String) CKANOrgJSON.get("display_name");
         String CKANOrgUuid = (String) CKANOrgJSON.get("id");
         org.setName(CKANOrgName);
         org.setUuid(CKANOrgUuid);
+        org.setDisplayName(CKANDisplayName);
 
         if (CKANOrgJSON.get("users") != null) {
             JSONArray CKANOrgUsersJSON = (JSONArray) CKANOrgJSON.get("users");
