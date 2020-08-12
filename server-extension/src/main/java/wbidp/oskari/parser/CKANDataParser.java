@@ -93,10 +93,12 @@ public class CKANDataParser {
 
         String CKANOrgName = (String) CKANOrgJSON.get("name");
         String CKANDisplayName = (String) CKANOrgJSON.get("display_name");
+        String CKANTitle = (String) CKANOrgJSON.get("title");
         String CKANOrgUuid = (String) CKANOrgJSON.get("id");
         org.setName(CKANOrgName);
         org.setUuid(CKANOrgUuid);
         org.setDisplayName(CKANDisplayName);
+        org.setTitle(CKANTitle);
 
         if (CKANOrgJSON.get("users") != null) {
             JSONArray CKANOrgUsersJSON = (JSONArray) CKANOrgJSON.get("users");

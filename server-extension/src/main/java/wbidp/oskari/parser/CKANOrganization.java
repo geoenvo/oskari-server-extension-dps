@@ -13,6 +13,7 @@ public class CKANOrganization extends Role {
     private String uuid;
     private Set<User> users = new LinkedHashSet<>();
     private String displayName;
+    private String title;
 
     public String getUuid() {
         return uuid;
@@ -38,5 +39,13 @@ public class CKANOrganization extends Role {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 }
