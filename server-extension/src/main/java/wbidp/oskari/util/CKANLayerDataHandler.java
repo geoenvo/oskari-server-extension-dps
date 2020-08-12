@@ -146,8 +146,11 @@ public class CKANLayerDataHandler {
                                      String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
         // Get/Set WFS API version, defaults to 1.1.0
         // Supported WFS versions in Oskari: 1.1.0, 2.0.0, 3.0.0
-        String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.1.0";
-        
+        String version = "1.1.0";
+        if ((resource.get("version") != null) && !((String) resource.get("version")).isEmpty()) {
+            version = (String) resource.get("version");
+        }
+
         String mainGroupName = (resource.get("name") != null) ? (String) resource.get("name") : "Misc Layers";
         LOG.debug(String.format("Getting WFS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWFSCapabilities.getWFSCapabilities(url, user, pw, version, currentCrs);
@@ -158,7 +161,9 @@ public class CKANLayerDataHandler {
                                   org.json.JSONObject json, String layerType, boolean isPrivateResource, String mainGroupName,
                                   CKANOrganization organization) {
         try {
-            mainGroupName = json.has("title") ? json.getString("title") : mainGroupName;
+            if (json.has("title") && !json.getString("title").isEmpty()) {
+                mainGroupName = json.getString("title");
+            }
             org.json.JSONObject locale = LayerJSONHelper.getLocale(mainGroupName, mainGroupName, mainGroupName);
             DataProvider dp = DATA_PROVIDER_SERVICE.findByName(mainGroupName);
             if (dp == null) {
@@ -221,11 +226,11 @@ public class CKANLayerDataHandler {
 
             String wmsUrl = String.format("%s/%s/wms", gsUrl, workspaceName);
             resource.put("name", String.format("%s (local shp data)", organization.getTitle()));
-            addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource, organization);
             if (publishWFS) {
                 String wfsUrl = String.format("%s/%s/wfs", gsUrl, workspaceName);
                 addWFSLayers(resource, connection, wfsUrl, user, pw, currentCrs, isPrivateResource, organization);
             }
+            addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource, organization);
         } catch (Exception e) {
             LOG.error("Error while adding shapefile! " + e);
         }
