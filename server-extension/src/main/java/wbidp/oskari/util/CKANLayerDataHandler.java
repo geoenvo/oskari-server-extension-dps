@@ -63,6 +63,10 @@ public class CKANLayerDataHandler {
     private static final Logger LOG = LogFactory.getLogger(CKANDataParser.class);
     private static final DataProviderService DATA_PROVIDER_SERVICE = new DataProviderServiceMybatisImpl();
 
+    private static String dataDestDir = "/tmp";
+    private static String gsUrl  = PropertyUtil.get("geoserver.url", "http://localhost:8080/geoserver");
+    private static ResponseHandler<String> responseHandler = LayerHelper.generateGeoServerResponseHandler();
+
     /**
      * Parses the given CKAN resource JSON, gets capabilities from the supported APIs
      * and adds all layers to Oskari.
@@ -100,7 +104,7 @@ public class CKANLayerDataHandler {
                 addShpFileAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
                 break;
             case "tiff":
-                // TODO: Add support for GeoTIFF
+                addGeoTIFFAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
                 break;
             default:
                 LOG.info(String.format("No match for data format (%s).", format));
@@ -112,7 +116,10 @@ public class CKANLayerDataHandler {
                                      String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
         // Get/Set WMS API version, defaults to 1.3.0
         // Supported WMS versions in Oskari: 1.1.1, 1.3.0
-        String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.3.0";
+        String version = "1.3.0";
+        if ((resource.get("version") != null) && !((String) resource.get("version")).isEmpty()) {
+            version = (String) resource.get("version");
+        }
 
         String mainGroupName = (resource.get("name") != null) ? (String) resource.get("name") : "Misc Layers";
         LOG.debug(String.format("Getting WMS capabilities from %s (version %s)", url, version));
@@ -124,7 +131,10 @@ public class CKANLayerDataHandler {
     private static void addWMTSLayers(JSONObject resource, Connection connection,
                                       CapabilitiesCacheService capabilitiesService, String url, String user, String pw,
                                       String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
-        String version = (resource.get("version") != null) ? (String) resource.get("version") : "1.0.0";
+        String version = "1.0.0";
+        if ((resource.get("version") != null) && !((String) resource.get("version")).isEmpty()) {
+            version = (String) resource.get("version");
+        }
 
         String mainGroupName = (resource.get("name") != null) ? (String) resource.get("name") : "Misc Layers";
 
@@ -203,10 +213,7 @@ public class CKANLayerDataHandler {
     private static void addShpFileAsLayer(JSONObject resource, Connection connection, CapabilitiesCacheService capabilitiesService,
                                           String url, String user, String pw, String currentCrs, boolean isPrivateResource,
                                           CKANOrganization organization) throws ServiceException {
-        String dataDestDir = "/tmp";
-        String gsUrl  = PropertyUtil.get("geoserver.url", "http://localhost:8080/geoserver");
         boolean publishWFS = PropertyUtil.getOptional("ckan.integration.shp.publish.wfs", true);
-        ResponseHandler<String> responseHandler = LayerHelper.generateGeoServerResponseHandler();
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
@@ -228,10 +235,10 @@ public class CKANLayerDataHandler {
             uploadShpFileToGeoServer(workspaceName, storeName, responseHandler, gsUrl, shpFileZip);
             uploadSldToGeoServer(gsUrl, new File(dataFilePath), workspaceName, FileHelper.getFileNameFromZip(dataFilePath, "shp"));
 
-            String wmsUrl = String.format("%s/%s/wms", gsUrl, workspaceName);
-            resource.put("name", String.format("%s (local shp data)", organization.getTitle()));
+            String wmsUrl = String.format("%s/%s/ows?service=WMS", gsUrl, workspaceName);
+            resource.put("name", String.format("%s (local data)", organization.getTitle()));
             if (publishWFS) {
-                String wfsUrl = String.format("%s/%s/wfs", gsUrl, workspaceName);
+                String wfsUrl = String.format("%s/%s/ows?service=WFS", gsUrl, workspaceName);
                 addWFSLayers(resource, connection, wfsUrl, user, pw, currentCrs, isPrivateResource, organization);
             }
             addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource, organization);
@@ -297,5 +304,48 @@ public class CKANLayerDataHandler {
             response = client.execute(httpPut);
             LOG.info(String.format("Got response from GeoServer: %s", response.getStatusLine().toString()));
         }
+    }
+
+    private static void addGeoTIFFAsLayer(JSONObject resource, Connection connection, CapabilitiesCacheService capabilitiesService,
+                                          String url, String user, String pw, String currentCrs, boolean isPrivateResource,
+                                          CKANOrganization organization) throws ServiceException {
+        String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
+        String storeName = "geotiff_store";
+        if (resource.get("name") != null) {
+            storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
+        }
+
+        try {
+            createGeoServerWorkspace(workspaceName, responseHandler, gsUrl);
+
+            LOG.info(String.format("Getting GeoTIFF file from: %s", url));
+            String filename = url.substring(url.lastIndexOf("/") + 1);
+            String dataFilePath = String.format("%s/%s", dataDestDir, filename);
+            InputStream in = new URL(url).openStream();
+            Files.copy(in, Paths.get(dataFilePath), StandardCopyOption.REPLACE_EXISTING);
+            File tiffFile = new File(dataFilePath);
+
+            uploadGeoTIFFToGeoServer(workspaceName, storeName, responseHandler, gsUrl, tiffFile);
+
+            String wmsUrl = String.format("%s/%s/ows?service=WMS", gsUrl, workspaceName);
+            resource.put("name", String.format("%s (local data)", organization.getTitle()));
+            addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource, organization);
+        } catch (Exception e) {
+            LOG.error("Error while adding GeoTIFF! " + e);
+        }
+    }
+
+    private static void uploadGeoTIFFToGeoServer(String workspaceName, String storeName, ResponseHandler<String> responseHandler,
+                                                 String gsUrl, File tiffFile) throws IOException {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
+        HttpPut httpPut = new HttpPut(String.format("%s/rest/workspaces/%s/coveragestores/%s/file.geotiff", gsUrl, workspaceName, storeName));
+        httpPut.setEntity(new FileEntity(tiffFile, ContentType.create("image/tiff")));
+        httpPut.setHeader("Authorization", authHeaderValue);
+
+        LOG.info(String.format("Uploading GeoTIFF to GeoServer (request: %s) ", httpPut.getRequestLine()));
+
+        String responseBody = httpclient.execute(httpPut, responseHandler);
+        LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
     }
 }
