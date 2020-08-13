@@ -16,11 +16,13 @@ import fi.nls.oskari.geoserver.GeoserverPopulator;
 import fi.nls.oskari.map.myplaces.service.GeoServerProxyService;
 import fi.nls.oskari.util.PropertyUtil;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
@@ -30,6 +32,7 @@ import org.apache.http.entity.FileEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
@@ -216,13 +219,14 @@ public class CKANLayerDataHandler {
 
             LOG.info(String.format("Getting shp file from: %s", url));
             String filename = url.substring(url.lastIndexOf("/") + 1);
-            String dataPath = String.format("%s/%s", dataDestDir, filename);
+            String dataFilePath = String.format("%s/%s", dataDestDir, filename);
             InputStream in = new URL(url).openStream();
-            Files.copy(in, Paths.get(dataPath), StandardCopyOption.REPLACE_EXISTING);
-            File shpFileZip = new File(dataPath);
-            FileHelper.unzipArchive(dataDestDir, new File(dataPath));
+            Files.copy(in, Paths.get(dataFilePath), StandardCopyOption.REPLACE_EXISTING);
+            File shpFileZip = new File(dataFilePath);
+            FileHelper.unzipArchive(dataFilePath, new File(dataDestDir));
 
             uploadShpFileToGeoServer(workspaceName, storeName, responseHandler, gsUrl, shpFileZip);
+            uploadSldToGeoServer(gsUrl, new File(dataFilePath), workspaceName, FileHelper.getFileNameFromZip(dataFilePath, "shp"));
 
             String wmsUrl = String.format("%s/%s/wms", gsUrl, workspaceName);
             resource.put("name", String.format("%s (local shp data)", organization.getTitle()));
@@ -262,5 +266,36 @@ public class CKANLayerDataHandler {
 
         String responseBody = httpclient.execute(httpPut, responseHandler);
         LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
+    }
+
+    private static void uploadSldToGeoServer(String gsUrl, File styleFile, String workspaceName, String shpName) throws IOException {
+        HttpClient client = HttpClientBuilder.create().build();
+        String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
+        HttpPost httpPost = new HttpPost(String.format("%s/rest/styles", gsUrl));
+        httpPost.setEntity(new FileEntity(styleFile, ContentType.create("application/zip")));
+        httpPost.setHeader("Authorization", authHeaderValue);
+
+        LOG.info(String.format("Uploading style to GeoServer (request: %s) ", httpPost.getRequestLine()));
+
+        HttpResponse response = client.execute(httpPost);
+
+        String status = response.getStatusLine().toString();
+        LOG.info(String.format("Got response from GeoServer: %s", status));
+        String location = response.getFirstHeader("Location") != null ? response.getFirstHeader("Location").getValue() : null;
+        String styleName = null;
+        if (location != null) {
+            styleName = location.substring(location.lastIndexOf("/") + 1, location.length() - 1);
+        } else if (status.contains("403")) {
+            styleName = StringUtils.substringBetween(status, "Style ", " already");
+        }
+
+        if (styleName != null && shpName != null) {
+            HttpPut httpPut = new HttpPut(String.format("%s/rest/layers/%s:%s", gsUrl, workspaceName, shpName));
+            httpPut.setEntity(new StringEntity(String.format("<layer><defaultStyle><name>%s</name></defaultStyle></layer>", styleName), ContentType.create("text/xml")));
+            httpPut.setHeader("Authorization", authHeaderValue);
+            LOG.info(String.format("Setting style (%s) for layer (%s:%s).", styleName, workspaceName, shpName));
+            response = client.execute(httpPut);
+            LOG.info(String.format("Got response from GeoServer: %s", response.getStatusLine().toString()));
+        }
     }
 }

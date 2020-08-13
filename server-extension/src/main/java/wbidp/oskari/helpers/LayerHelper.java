@@ -711,9 +711,14 @@ public class LayerHelper {
     public static ResponseHandler<String> generateGeoServerResponseHandler() {
         ResponseHandler<String> responseHandler = response -> {
             int status = response.getStatusLine().getStatusCode();
-            if ((status >= 200 && status < 300) || status == 401) {
+            if ((status >= 200 && status < 500)) {
                 HttpEntity entity = response.getEntity();
-                return entity != null ? EntityUtils.toString(entity) : null;
+                String entityStr = EntityUtils.toString(entity);
+                if (entity != null && !entityStr.isEmpty()) {
+                    return entityStr;
+                } else {
+                    return String.format("Response status: %d", status);
+                }
             } else {
                 throw new ClientProtocolException("Unexpected response status: " + status);
             }
