@@ -291,7 +291,7 @@ public class CKANLayerDataHandler {
         String location = response.getFirstHeader("Location") != null ? response.getFirstHeader("Location").getValue() : null;
         String styleName = null;
         if (location != null) {
-            styleName = location.substring(location.lastIndexOf("/") + 1, location.length() - 1);
+            styleName = location.substring(location.lastIndexOf("/") + 1, location.length());
         } else if (status.contains("403")) {
             styleName = StringUtils.substringBetween(status, "Style ", " already");
         }
