@@ -225,7 +225,7 @@ public class CKANLayerDataHandler {
         if (resource.get("name") != null) {
             storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
         }
-        String resourceName = (String) resource.get("name");
+        String resourceName = null;
 
         try {
             createGeoServerWorkspace(workspaceName, responseHandler, gsUrl);
@@ -321,7 +321,7 @@ public class CKANLayerDataHandler {
         if (resource.get("name") != null) {
             storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
         }
-        String resourceName = (String) resource.get("name");
+        String resourceName = null;
 
         try {
             createGeoServerWorkspace(workspaceName, responseHandler, gsUrl);
