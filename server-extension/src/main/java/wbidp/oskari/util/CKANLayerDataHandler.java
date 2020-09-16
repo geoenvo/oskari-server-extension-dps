@@ -8,7 +8,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.sql.Connection;
+import java.sql.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 import javax.xml.stream.XMLStreamException;
 
@@ -80,34 +85,95 @@ public class CKANLayerDataHandler {
                                                      CKANOrganization organization) throws ServiceException {
         CapabilitiesCacheService capabilitiesService = OskariComponentManager.getComponentOfType(CapabilitiesCacheService.class);
 
-        String url = (String) resource.get("url");
-        url = url.contains("?") ? url.split("\\?")[0] : url;
-        String format = (resource.get("format") != null) ? (String) resource.get("format") : "No format defined!";
-        String user = (resource.get("username") != null) ? (String) resource.get("username") : "";
-        String pw = (resource.get("password") != null) ? (String) resource.get("password") : "";
-        String currentCrs = "EPSG:3067";
+        boolean updateNeeded = checkResourceStatus(resource, connection);
 
-        switch ((format).toLowerCase()) {
-            case "wms":
-                addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization, null);
-                break;
-            case "wmts":
-                addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
-                break;
-            case "wfs":
-                addWFSLayers(resource, connection, url, user, pw, currentCrs, isPrivateResource, organization, null);
-                break;
-            case "esri rest":
-                // TODO: Add support for Esri REST
-                break;
-            case "shp":
-                addShpFileAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
-                break;
-            case "tiff":
-                addGeoTIFFAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
-                break;
-            default:
-                LOG.info(String.format("No match for data format (%s).", format));
+        if (updateNeeded) {
+            String url = (String) resource.get("url");
+            url = url.contains("?") ? url.split("\\?")[0] : url;
+            String format = (resource.get("format") != null) ? (String) resource.get("format") : "No format defined!";
+            String user = (resource.get("username") != null) ? (String) resource.get("username") : "";
+            String pw = (resource.get("password") != null) ? (String) resource.get("password") : "";
+            String currentCrs = "EPSG:3067";
+
+            switch ((format).toLowerCase()) {
+                case "wms":
+                    addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization, null);
+                    addOrUpdateResourceInfo(resource, connection);
+                    break;
+                case "wmts":
+                    addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
+                    addOrUpdateResourceInfo(resource, connection);
+                    break;
+                case "wfs":
+                    addWFSLayers(resource, connection, url, user, pw, currentCrs, isPrivateResource, organization, null);
+                    addOrUpdateResourceInfo(resource, connection);
+                    break;
+                case "esri rest":
+                    // TODO: Add support for Esri REST
+                    break;
+                case "shp":
+                    addShpFileAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
+                    addOrUpdateResourceInfo(resource, connection);
+                    break;
+                case "tiff":
+                    addGeoTIFFAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
+                    addOrUpdateResourceInfo(resource, connection);
+                    break;
+                default:
+                    LOG.info(String.format("No match for resource data format (%s).", format));
+            }
+        } else {
+            LOG.info(String.format("Resource %s is up-to-date, skipping...", resource.get("name")));
+        }
+    }
+
+    private static boolean checkResourceStatus(JSONObject resource, Connection connection) {
+        boolean updateNeeded = false;
+        String uuid = (String) resource.get("id");
+        String lastModified = (resource.get("last_modified") != null) ? (String) resource.get("last_modified") : (String) resource.get("created");
+        updateNeeded = resourceNeedsUpdate(connection, uuid, lastModified);
+
+        return updateNeeded;
+    }
+
+    private static boolean resourceNeedsUpdate(Connection connection, String uuid, String lastModified) {
+        LocalDateTime lastModifiedDate = LocalDateTime.parse(lastModified, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS"));
+        LocalDateTime currentModifiedDate = null;
+
+        String sql = "SELECT * FROM oskari_ckan_dataset_resource_log WHERE resource_uuid = '" + uuid + "';";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            LOG.debug("Executing:", ps.toString());
+            ResultSet rs = ps.executeQuery();
+            while(rs.next()) {
+                currentModifiedDate = rs.getTimestamp("last_modified").toLocalDateTime();
+            }
+        } catch (SQLException ex) {
+            LOG.error("Error while checking resource." + ex.toString());
+            return false;
+        }
+
+        if (currentModifiedDate != null && (currentModifiedDate.isEqual(lastModifiedDate) || currentModifiedDate.isAfter(lastModifiedDate))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void addOrUpdateResourceInfo(JSONObject resource, Connection connection) {
+        String uuid = (String) resource.get("id");
+        String lastModified = (resource.get("last_modified") != null) ? (String) resource.get("last_modified") : (String) resource.get("created");
+
+        String sql = "INSERT INTO \"oskari_ckan_dataset_resource_log\" (last_modified, resource_uuid)\n" +
+                "VALUES\n" +
+                "('" + lastModified + "', '" + uuid + "')\n" +
+                "ON CONFLICT (resource_uuid) DO UPDATE SET last_modified = '" + lastModified + "';";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            LOG.debug("Executing:", ps.toString());
+            ps.executeUpdate();
+        } catch (SQLException ex) {
+            LOG.error("Error while updating Oskari CKAN resource log." + ex.toString());
         }
     }
 
