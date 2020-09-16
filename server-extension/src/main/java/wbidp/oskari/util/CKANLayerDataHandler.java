@@ -284,7 +284,7 @@ public class CKANLayerDataHandler {
     private static void addShpFileAsLayer(JSONObject resource, Connection connection, CapabilitiesCacheService capabilitiesService,
                                           String url, String user, String pw, String currentCrs, boolean isPrivateResource,
                                           CKANOrganization organization) throws ServiceException {
-        boolean publishWFS = PropertyUtil.getOptional("ckan.integration.shp.publish.wfs", true);
+        boolean publishWFS = resource.get("publish_wfs") != null ? Boolean.valueOf((String)resource.get("publish_wfs")) : true;
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
@@ -310,6 +310,7 @@ public class CKANLayerDataHandler {
             String wmsUrl = String.format("%s/%s/wms", gsUrl, workspaceName);
             resource.put("name", String.format("%s (local data)", organization.getTitle()));
             if (publishWFS) {
+                LOG.debug("Publishing uploaded shp also as WFS layer.");
                 String wfsUrl = String.format("%s/%s/wfs", gsUrl, workspaceName);
                 addWFSLayers(resource, connection, wfsUrl, user, pw, currentCrs, isPrivateResource, organization, resourceName);
             }
