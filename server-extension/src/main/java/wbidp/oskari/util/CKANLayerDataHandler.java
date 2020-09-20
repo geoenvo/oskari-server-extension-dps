@@ -286,7 +286,7 @@ public class CKANLayerDataHandler {
                                           CKANOrganization organization) throws ServiceException {
         boolean publishWFS = (resource.get("publish_wfs") != null && !((String)resource.get("publish_wfs")).equals("")) ? Boolean.valueOf((String)resource.get("publish_wfs")) : true;
         boolean removeSpacesFromShpName = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.removespaces", false);
-        boolean createResourceWorkspaces = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.resourceworkspaces", false);
+        boolean createResourceWorkspaces = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.resourceworkspaces", true);
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
