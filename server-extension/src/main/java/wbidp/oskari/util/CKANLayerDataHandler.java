@@ -285,6 +285,7 @@ public class CKANLayerDataHandler {
                                           String url, String user, String pw, String currentCrs, boolean isPrivateResource,
                                           CKANOrganization organization) throws ServiceException {
         boolean publishWFS = resource.get("publish_wfs") != null ? Boolean.valueOf((String)resource.get("publish_wfs")) : true;
+        boolean removeSpacesFromShpName = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.removeSpacesFromName", false);
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
@@ -302,7 +303,11 @@ public class CKANLayerDataHandler {
             InputStream in = new URL(url).openStream();
             Files.copy(in, Paths.get(dataFilePath), StandardCopyOption.REPLACE_EXISTING);
             File shpFileZip = new File(dataFilePath);
-            FileHelper.unzipArchive(dataFilePath, new File(dataDestDir));
+
+            if (removeSpacesFromShpName) {
+                shpFileZip = FileHelper.renameFilesInZip(dataFilePath, new File(String.format("%s/%s", dataDestDir,
+                filename.substring(0, filename.lastIndexOf('.')))), " ", "_");
+            }
 
             uploadShpFileToGeoServer(workspaceName, storeName, responseHandler, gsUrl, shpFileZip);
             uploadSldToGeoServer(gsUrl, new File(dataFilePath), workspaceName, FileHelper.getFileNameFromZip(dataFilePath, "shp"));
