@@ -284,8 +284,9 @@ public class CKANLayerDataHandler {
     private static void addShpFileAsLayer(JSONObject resource, Connection connection, CapabilitiesCacheService capabilitiesService,
                                           String url, String user, String pw, String currentCrs, boolean isPrivateResource,
                                           CKANOrganization organization) throws ServiceException {
-        boolean publishWFS = resource.get("publish_wfs") != null ? Boolean.valueOf((String)resource.get("publish_wfs")) : true;
-        boolean removeSpacesFromShpName = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.rename", false);
+        boolean publishWFS = (resource.get("publish_wfs") != null && !((String)resource.get("publish_wfs")).equals("")) ? Boolean.valueOf((String)resource.get("publish_wfs")) : true;
+        boolean removeSpacesFromShpName = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.removespaces", false);
+        boolean createResourceWorkspaces = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.resourceworkspaces", false);
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
@@ -293,6 +294,10 @@ public class CKANLayerDataHandler {
             storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
         }
         String resourceName = null;
+
+        if (createResourceWorkspaces) {
+            workspaceName = String.format("%s_%s", workspaceName, storeName);
+        }
 
         try {
             createGeoServerWorkspace(workspaceName, responseHandler, gsUrl);
