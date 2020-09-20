@@ -285,7 +285,7 @@ public class CKANLayerDataHandler {
                                           String url, String user, String pw, String currentCrs, boolean isPrivateResource,
                                           CKANOrganization organization) throws ServiceException {
         boolean publishWFS = resource.get("publish_wfs") != null ? Boolean.valueOf((String)resource.get("publish_wfs")) : true;
-        boolean removeSpacesFromShpName = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.removeSpacesFromName", false);
+        boolean removeSpacesFromShpName = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.rename", false);
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
