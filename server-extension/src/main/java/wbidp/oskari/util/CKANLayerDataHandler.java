@@ -97,15 +97,15 @@ public class CKANLayerDataHandler {
 
             switch ((format).toLowerCase()) {
                 case "wms":
-                    addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization, null);
+                    addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization, null, false);
                     addOrUpdateResourceInfo(resource, connection);
                     break;
                 case "wmts":
-                    addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
+                    addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization, false);
                     addOrUpdateResourceInfo(resource, connection);
                     break;
                 case "wfs":
-                    addWFSLayers(resource, connection, url, user, pw, currentCrs, isPrivateResource, organization, null);
+                    addWFSLayers(resource, connection, url, user, pw, currentCrs, isPrivateResource, organization, null, false);
                     addOrUpdateResourceInfo(resource, connection);
                     break;
                 case "esri rest":
@@ -179,7 +179,7 @@ public class CKANLayerDataHandler {
 
     private static void addWMSLayers(JSONObject resource, Connection connection,
                                      CapabilitiesCacheService capabilitiesService, String url, String user, String pw,
-                                     String currentCrs, boolean isPrivateResource, CKANOrganization organization, String overrideName) throws ServiceException {
+                                     String currentCrs, boolean isPrivateResource, CKANOrganization organization, String overrideName, boolean addForceProxy) throws ServiceException {
         // Get/Set WMS API version, defaults to 1.3.0
         // Supported WMS versions in Oskari: 1.1.1, 1.3.0
         String version = "1.3.0";
@@ -191,12 +191,12 @@ public class CKANLayerDataHandler {
         LOG.debug(String.format("Getting WMS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWMSCapabilities.getWMSCapabilities(capabilitiesService, url, user, pw, version,
                 currentCrs);
-        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS, isPrivateResource, mainGroupName, organization, overrideName);
+        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS, isPrivateResource, mainGroupName, organization, overrideName, addForceProxy);
     }
 
     private static void addWMTSLayers(JSONObject resource, Connection connection,
                                       CapabilitiesCacheService capabilitiesService, String url, String user, String pw,
-                                      String currentCrs, boolean isPrivateResource, CKANOrganization organization) throws ServiceException {
+                                      String currentCrs, boolean isPrivateResource, CKANOrganization organization, boolean addForceProxy) throws ServiceException {
         String version = "1.0.0";
         if ((resource.get("version") != null) && !((String) resource.get("version")).isEmpty()) {
             version = (String) resource.get("version");
@@ -215,14 +215,14 @@ public class CKANLayerDataHandler {
             }
             org.json.JSONObject resultJSON = WMTSCapabilitiesParser.asJSON(wmtsCaps, url, currentCrs);
             JSONHelper.putValue(resultJSON, "xml", capabilitiesXML);
-            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS, isPrivateResource, mainGroupName, organization, null);
+            addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS, isPrivateResource, mainGroupName, organization, null, addForceProxy);
         } catch (IllegalArgumentException | XMLStreamException e) {
             LOG.error("Error while parsing WMTS capabilities. " + e);
         }
     }
 
     private static void addWFSLayers(JSONObject resource, Connection connection, String url, String user, String pw,
-                                     String currentCrs, boolean isPrivateResource, CKANOrganization organization, String overrideName) throws ServiceException {
+                                     String currentCrs, boolean isPrivateResource, CKANOrganization organization, String overrideName, boolean addForceProxy) throws ServiceException {
         // Get/Set WFS API version, defaults to 1.1.0
         // Supported WFS versions in Oskari: 1.1.0, 2.0.0, 3.0.0
         String version = "1.1.0";
@@ -233,12 +233,12 @@ public class CKANLayerDataHandler {
         String mainGroupName = (resource.get("name") != null) ? (String) resource.get("name") : "Misc Layers";
         LOG.debug(String.format("Getting WFS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWFSCapabilities.getWFSCapabilities(url, user, pw, version, currentCrs);
-        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS, isPrivateResource, mainGroupName, organization, overrideName);
+        addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS, isPrivateResource, mainGroupName, organization, overrideName, addForceProxy);
     }
 
     private static void addLayers(Connection connection, String url, String user, String pw, String currentCrs,
                                   org.json.JSONObject json, String layerType, boolean isPrivateResource, String mainGroupName,
-                                  CKANOrganization organization, String overrideName) {
+                                  CKANOrganization organization, String overrideName, boolean addForceProxy) {
         try {
             if (json.has("title") && !json.getString("title").isEmpty()) {
                 mainGroupName = json.getString("title");
@@ -262,6 +262,10 @@ public class CKANLayerDataHandler {
 
             org.json.JSONObject layerAttributes = new org.json.JSONObject();
             layerAttributes = LayerJSONHelper.getForcedSRSJSON();
+
+            if (addForceProxy) {
+                LayerJSONHelper.addForceProxySetting(layerAttributes);
+            }
 
             for (int i = 0; i < layers.length(); i++) {
                 String layerName = layers.getJSONObject(i).getString("layerName");
@@ -287,6 +291,7 @@ public class CKANLayerDataHandler {
         boolean publishWFS = (resource.get("publish_wfs") != null && !((String)resource.get("publish_wfs")).equals("")) ? Boolean.valueOf((String)resource.get("publish_wfs")) : true;
         boolean removeSpacesFromShpName = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.removespaces", false);
         boolean createResourceWorkspaces = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.resourceworkspaces", true);
+        boolean addForceProxy = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.forceproxy", false);
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
@@ -322,10 +327,10 @@ public class CKANLayerDataHandler {
             if (publishWFS) {
                 LOG.debug("Publishing uploaded shp also as WFS layer.");
                 String wfsUrl = String.format("%s/%s/wfs", gsUrl, workspaceName);
-                addWFSLayers(resource, connection, wfsUrl, user, pw, currentCrs, isPrivateResource, organization, resourceName);
+                addWFSLayers(resource, connection, wfsUrl, user, pw, currentCrs, isPrivateResource, organization, resourceName, false);
             }
             addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource,
-                    organization, resourceName);
+                    organization, resourceName, addForceProxy);
         } catch (Exception e) {
             LOG.error("Error while adding shapefile! " + e);
         }
@@ -393,6 +398,8 @@ public class CKANLayerDataHandler {
     private static void addGeoTIFFAsLayer(JSONObject resource, Connection connection, CapabilitiesCacheService capabilitiesService,
                                           String url, String user, String pw, String currentCrs, boolean isPrivateResource,
                                           CKANOrganization organization) throws ServiceException {
+        boolean addForceProxy = PropertyUtil.getOptional("ckan.integration.ckanapi.geotiff.forceproxy", false);
+
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "geotiff_store";
         if (resource.get("name") != null) {
@@ -415,7 +422,7 @@ public class CKANLayerDataHandler {
             String wmsUrl = String.format("%s/%s/ows?service=WMS", gsUrl, workspaceName);
             resource.put("name", String.format("%s (local data)", organization.getTitle()));
             addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource,
-                    organization, resourceName);
+                    organization, resourceName, addForceProxy);
         } catch (Exception e) {
             LOG.error("Error while adding GeoTIFF! " + e);
         }
