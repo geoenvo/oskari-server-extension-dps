@@ -13,6 +13,7 @@ import fi.nls.oskari.log.LogFactory;
 import fi.nls.oskari.log.Logger;
 import fi.nls.oskari.service.ServiceException;
 import fi.nls.oskari.util.PropertyUtil;
+import wbidp.oskari.helpers.LayerHelper;
 import wbidp.oskari.jobs.SynchronizeUserDataJob;
 import wbidp.oskari.parser.CKANDataParser;
 import wbidp.oskari.parser.CKANOrganization;
@@ -157,6 +158,7 @@ public class SynchronizeDatabase {
             return;
         }
 
+        LayerHelper.emptyLayerCapabilitiesCache(oskariConnection);
         String CKANLayersDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.layers", "/tmp/ckandatasetsdump.jsonl");
         String CKANLayersDump = CKANDataParser.readCKANDumpFile(CKANLayersDumpFile);
         CKANDataParser.parseJSONAndAddLayers(CKANLayersDump, oskariConnection);

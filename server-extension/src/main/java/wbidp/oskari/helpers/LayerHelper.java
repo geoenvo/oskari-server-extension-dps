@@ -726,4 +726,16 @@ public class LayerHelper {
 
         return responseHandler;
     }
+
+    public static void emptyLayerCapabilitiesCache(Connection connection) {
+        String sql = "TRUNCATE TABLE oskari_capabilities_cache CASCADE;";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            LOG.debug("Executing:", ps.toString());
+            int i = ps.executeUpdate();
+            LOG.debug("Truncate result:", i);
+        } catch (SQLException ex) {
+            LOG.error("Error while emptying Oskari layer capabilities cache.", ex);
+        }
+        LOG.info("Emptying Oskari capabilities cache..");
+    }
 }
