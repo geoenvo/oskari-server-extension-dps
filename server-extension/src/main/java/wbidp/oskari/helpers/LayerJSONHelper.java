@@ -42,6 +42,11 @@ public class LayerJSONHelper {
         return json;
     }
 
+    public static JSONObject addForceProxySetting(JSONObject json) throws JSONException {
+        json.put("forceProxy", true);
+        return json;
+    }
+
     public static JSONObject getRolePermissionsJSONForRoleAndAdmin(String roleName) throws JSONException {
         JSONObject json = new JSONObject();
 
