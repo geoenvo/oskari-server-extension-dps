@@ -115,6 +115,11 @@ public class CKANLayerDataHandler {
                     addShpFileAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
                     addOrUpdateResourceInfo(resource, connection);
                     break;
+                case "tif":
+                    // CKAN format guesses .tif file not .tiff
+                    addGeoTIFFAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
+                    addOrUpdateResourceInfo(resource, connection);
+                    break;
                 case "tiff":
                     addGeoTIFFAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
                     addOrUpdateResourceInfo(resource, connection);
