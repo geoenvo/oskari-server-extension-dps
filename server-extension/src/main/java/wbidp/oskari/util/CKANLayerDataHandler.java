@@ -359,8 +359,12 @@ public class CKANLayerDataHandler {
         httpPost.setEntity(new FileEntity(styleFile, ContentType.create("application/zip")));
         httpPost.setHeader("Authorization", authHeaderValue);
 
-        // Make sure the shp (layer) name is encoded correctly to use in url
-        shpName = URIUtil.encodeQuery(shpName);
+        // Make sure the shp (layer) name is encoded correctly to use in url.
+        // NOTE! For some unknown reason, GeoServer seems to require double encoding spaces
+        // (and probably other special characters) in layer names. That is why the shpName
+        // is encoded twice here.
+        // TODO: If possible, try to find a different solution for this at some point!
+        shpName = URIUtil.encodeQuery(URIUtil.encodeQuery(shpName));
 
         LOG.info(String.format("Uploading style to GeoServer (request: %s) ", httpPost.getRequestLine()));
 
