@@ -1,48 +1,5 @@
 package wbidp.oskari.util;
 
-import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.sql.*;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-
-import javax.xml.stream.XMLStreamException;
-
-import fi.nls.oskari.geoserver.GeoserverPopulator;
-import fi.nls.oskari.map.myplaces.service.GeoServerProxyService;
-import fi.nls.oskari.util.PropertyUtil;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.ResponseHandler;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.FileEntity;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
-import org.json.JSONException;
-import org.json.simple.JSONObject;
-
 import fi.nls.oskari.domain.map.DataProvider;
 import fi.nls.oskari.domain.map.OskariLayer;
 import fi.nls.oskari.log.LogFactory;
@@ -54,15 +11,46 @@ import fi.nls.oskari.service.ServiceException;
 import fi.nls.oskari.service.capabilities.CapabilitiesCacheService;
 import fi.nls.oskari.service.capabilities.OskariLayerCapabilities;
 import fi.nls.oskari.util.JSONHelper;
+import fi.nls.oskari.util.PropertyUtil;
 import fi.nls.oskari.wfs.GetGtWFSCapabilities;
 import fi.nls.oskari.wms.GetGtWMSCapabilities;
 import fi.nls.oskari.wmts.WMTSCapabilitiesParser;
 import fi.nls.oskari.wmts.domain.WMTSCapabilities;
+import org.apache.commons.httpclient.util.URIUtil;
+import org.apache.commons.lang.StringUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.FileEntity;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.json.JSONException;
+import org.json.simple.JSONObject;
 import wbidp.oskari.helpers.FileHelper;
 import wbidp.oskari.helpers.LayerHelper;
 import wbidp.oskari.helpers.LayerJSONHelper;
 import wbidp.oskari.parser.CKANDataParser;
 import wbidp.oskari.parser.CKANOrganization;
+
+import javax.xml.stream.XMLStreamException;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class CKANLayerDataHandler {
     private static final Logger LOG = LogFactory.getLogger(CKANDataParser.class);
@@ -298,7 +286,6 @@ public class CKANLayerDataHandler {
         if (resource.get("name") != null) {
             storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
         }
-        String resourceName = null;
 
         if (createResourceWorkspaces) {
             workspaceName = String.format("%s_%s", workspaceName, storeName);
@@ -313,6 +300,7 @@ public class CKANLayerDataHandler {
             InputStream in = new URL(url).openStream();
             Files.copy(in, Paths.get(dataFilePath), StandardCopyOption.REPLACE_EXISTING);
             File shpFileZip = new File(dataFilePath);
+            String resourceName = FileHelper.getFileNameFromZip(dataFilePath, "shp");
 
             if (removeSpacesFromShpName) {
                 shpFileZip = FileHelper.renameFilesInZip(dataFilePath, new File(String.format("%s/%s", dataDestDir,
@@ -371,6 +359,9 @@ public class CKANLayerDataHandler {
         httpPost.setEntity(new FileEntity(styleFile, ContentType.create("application/zip")));
         httpPost.setHeader("Authorization", authHeaderValue);
 
+        // Make sure the shp (layer) name is encoded correctly to use in url
+        shpName = URIUtil.encodeQuery(shpName);
+
         LOG.info(String.format("Uploading style to GeoServer (request: %s) ", httpPost.getRequestLine()));
 
         HttpResponse response = client.execute(httpPost);
@@ -380,7 +371,7 @@ public class CKANLayerDataHandler {
         String location = response.getFirstHeader("Location") != null ? response.getFirstHeader("Location").getValue() : null;
         String styleName = null;
         if (location != null) {
-            styleName = location.substring(location.lastIndexOf("/") + 1, location.length());
+            styleName = URIUtil.decode(location.substring(location.lastIndexOf("/") + 1, location.length()));
         } else if (status.contains("403")) {
             styleName = StringUtils.substringBetween(status, "Style ", " already");
         }
