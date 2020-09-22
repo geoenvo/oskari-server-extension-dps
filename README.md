@@ -59,10 +59,10 @@ To automate the process of transferring data between CKAN and Oskari (users, gro
     # CKAN-Oskari integration setup
     ##################################
     
-    oskari.scheduler.job.SynchronizeUserDataJob.cronLine=0 * * * * ?    # MANDATORY for user sync! Define the interval for user/organization sync.
+    oskari.scheduler.job.SynchronizeUserDataJob.cronLine=0 * * * * ?    # MANDATORY for group/user sync! Define the interval for user/organization sync.
     oskari.scheduler.job.SynchronizeLayerDataJob.cronLine=0 * * * * ?   # MANDATORY for spatial data sync! Define the interval for spatial resource sync.
-    ckan.integration.ckanapi.dump.organizations=/tmp/ckanorgsdump.jsonl # MANDATORY for user sync! Define the location for the user account dump file.
-    ckan.integration.ckanapi.dump.users=/tmp/ckanusersdump.jsonl        # MANDATORY for group sync! Define the location for the organization dump file.
+    ckan.integration.ckanapi.dump.organizations=/tmp/ckanorgsdump.jsonl # MANDATORY for group sync! Define the location for the user account dump file.
+    ckan.integration.ckanapi.dump.users=/tmp/ckanusersdump.jsonl        # MANDATORY for user sync! Define the location for the organization dump file.
     ckan.integration.ckanapi.dump.datasets=/tmp/ckandatasetsdump.jsonl  # MANDATORY spatial data sync! Define the location for the spatial dataset dump file.
     
     ckan.integration.ckanapi.shp.resourceworkspaces=true                # OPTIONAL! Define (true/false) if workspaces in GeoServer are resource specific. Recommended option: true
