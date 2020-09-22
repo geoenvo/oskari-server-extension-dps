@@ -24,6 +24,30 @@ Replace oskari-map.war under {jetty.home}/webapps/ with the one created under we
 
 ## Settings related to CKAN Integration
 
+IDP makes it possible to share/synchronize user credentials, groups (= organizations in CKAN) and spatial dataset resources between CKAN and Oskari.
+This feature needs some preparing in CKAN and also some settings in Oskari for the synchronization to work. This section describes the needed steps and settings for the integration.
+
+#### What is currently possible to synchronize?
+
+ * Organizations (groups in Oskari)
+    * Organizations are mapped as groups in Oskari!
+ * User accounts
+    * Usernames, passwords and the groups (organizations in CKAN) the user belongs to
+    * IDP Oskari supports using CKAN hashed passwords
+ * Spatial dataset resources
+   * Supported API's: WMS, WMTS and WFS
+   * Supported data formats: SHP and GeoTIFF (spatial data is first published to the local GeoServer)
+
+#### Preparing CKAN for the integration
+
+First, you need to setup a dump process for the data you want to synchronize to Oskari. For this to work, you need to dump CKAN user accounts, organization data and public datasets to the supported jsonl-format.
+
+For more information on how to achieve this, please refer to https://docs.ckan.org/en/2.9/maintaining/database-management.html#database-management.
+
+We recommend configuring a scheduled process on server side that is in sync with the scheduled Oskari task.
+
+#### Preparing Oskari for the integration
+
 To support using CKAN's hashed passwords with Oskari, you need to change the used UserService in **oskari-ext.properties** (replace the existing setting!):
 
     oskari.user.service=wbidp.oskari.util.DatabaseUserServiceCKAN
@@ -34,14 +58,19 @@ To automate the process of transferring data between CKAN and Oskari (users, gro
     # CKAN-Oskari integration setup
     ##################################
     
-    oskari.scheduler.job.SynchronizeUserDataJob.cronLine=0 * * * * ?
-    oskari.scheduler.job.SynchronizeLayerDataJob.cronLine=0 * * * * ?
-    ckan.integration.db.url=jdbc:postgresql://localhost:5432/ckan
-    ckan.integration.db.username=oskari
-    ckan.integration.db.password=oskari19
-    ckan.integration.ckanapi.dump.organizations=/tmp/ckanorgsdump.jsonl
-    ckan.integration.ckanapi.dump.users=/tmp/ckanusersdump.jsonl
-    ckan.integration.ckanapi.dump.datasets=/tmp/ckandatasetsdump.jsonl
+    oskari.scheduler.job.SynchronizeUserDataJob.cronLine=0 * * * * ?    # MANDATORY for user sync! Define the interval for user/organization sync.
+    oskari.scheduler.job.SynchronizeLayerDataJob.cronLine=0 * * * * ?   # MANDATORY for spatial data sync! Define the interval for spatial resource sync.
+    ckan.integration.ckanapi.dump.organizations=/tmp/ckanorgsdump.jsonl # MANDATORY for user sync! Define the location for the user account dump file.
+    ckan.integration.ckanapi.dump.users=/tmp/ckanusersdump.jsonl        # MANDATORY for group sync! Define the location for the organization dump file.
+    ckan.integration.ckanapi.dump.datasets=/tmp/ckandatasetsdump.jsonl  # MANDATORY spatial data sync! Define the location for the spatial dataset dump file.
+    
+    ckan.integration.ckanapi.shp.resourceworkspaces=true                # OPTIONAL! Define if workspaces in GeoServer are resource specific. Recommended option: true
+    ckan.integration.ckanapi.shp.forceproxy=true                        # OPTIONAL! Define if forceProxy-attribute will be set for SHP-based layers.
+    ckan.integration.ckanapi.geotiff.forceproxy=true                    # OPTIONAL! Define if forceProxy-attribute will be set for GeoTIFF-based layers.
+    
+    ckan.integration.db.url=jdbc:postgresql://localhost:5432/ckan       # NOT NEEDED! Reserved for possible future use.
+    ckan.integration.db.username=oskari                                 # NOT NEEDED! Reserved for possible future use.
+    ckan.integration.db.password=oskari19                               # NOT NEEDED! Reserved for possible future use.
 
 ## Settings related to Download Basket
 
