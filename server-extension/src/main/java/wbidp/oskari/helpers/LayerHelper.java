@@ -653,9 +653,9 @@ public class LayerHelper {
     public static int addMainGroup(String fiName, String enName, String svName) throws JSONException {
         MaplayerGroup mainGroup = new MaplayerGroup();
         boolean useDefaultLocales = PropertyUtil.getOptional("ckan.integration.ckanapi.layer.defaultlocales", false);
-        mainGroup.setLocale(LayerJSONHelper.getDefaultLocale(fiName, enName, svName));
+        mainGroup.setLocale(LayerJSONHelper.getIDPLocale(enName, enName));
         if (useDefaultLocales) {
-            mainGroup.setLocale(LayerJSONHelper.getIDPLocale(enName, enName));
+            mainGroup.setLocale(LayerJSONHelper.getDefaultLocale(fiName, enName, svName));
         }
 
         mainGroup.setSelectable(true);
