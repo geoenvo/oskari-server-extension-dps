@@ -6,7 +6,7 @@ import org.json.JSONObject;
 
 public class LayerJSONHelper {
 
-    public static JSONObject getLocale(final String fi, final String en, final String sv) throws JSONException {
+    public static JSONObject getDefaultLocale(final String fi, final String en, final String sv) throws JSONException {
         JSONObject json = new JSONObject();
         JSONObject fiJSON = new JSONObject();
         fiJSON.put("name", fi);
@@ -17,6 +17,17 @@ public class LayerJSONHelper {
         json.put("fi", fiJSON);
         json.put("en", enJSON);
         json.put("sv", svJSON);
+        return json;
+    }
+
+    public static JSONObject getIDPLocale(final String in, final String en) throws JSONException {
+        JSONObject json = new JSONObject();
+        JSONObject inJSON = new JSONObject();
+        inJSON.put("name", in);
+        JSONObject enJSON = new JSONObject();
+        enJSON.put("name", en);
+        json.put("in", inJSON);
+        json.put("en", enJSON);
         return json;
     }
 

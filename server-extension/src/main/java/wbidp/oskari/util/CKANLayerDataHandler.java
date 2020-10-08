@@ -236,7 +236,7 @@ public class CKANLayerDataHandler {
             if (json.has("title") && !json.getString("title").isEmpty()) {
                 mainGroupName = json.getString("title");
             }
-            org.json.JSONObject locale = LayerJSONHelper.getLocale(mainGroupName, mainGroupName, mainGroupName);
+            org.json.JSONObject locale = LayerJSONHelper.getIDPLocale(mainGroupName, mainGroupName);
             DataProvider dp = DATA_PROVIDER_SERVICE.findByName(mainGroupName);
             if (dp == null) {
                 dp = new DataProvider();
@@ -267,7 +267,7 @@ public class CKANLayerDataHandler {
                     layerTitle = overrideName;
                 }
                 layersToAdd.put(LayerHelper.generateLayerJSON(layerType, url, layerName, mainGroupName,
-                        LayerJSONHelper.getLocale(layerTitle, layerTitle, layerTitle), false, -1,
+                        LayerJSONHelper.getIDPLocale(layerTitle, layerTitle), false, -1,
                         null, -1.0, -1.0, null, null, null, null, null, null, false, 0, currentCrs, LayerHelper.VERSION_WMS130,
                         user, pw, null, null, layerPermissions, layerAttributes));
             }
