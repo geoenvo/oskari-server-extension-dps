@@ -25,7 +25,7 @@ public class CKANDataParser {
     /**
      * Read content of CKAN dump file.
      * 
-     * @param CKANDumpfilePath path to CKAN dump file.
+     * @param CKANDumpFilePath path to CKAN dump file.
      * @return String content of CKAN dump file.
      */
     public static String readCKANDumpFile(String CKANDumpFilePath) {
@@ -58,7 +58,7 @@ public class CKANDataParser {
         boolean CKANSysAdmin = (CKANUserJSON.get("sysadmin") != null) ? (boolean) CKANUserJSON.get("sysadmin") : false;
         user.setCKANSysAdmin(CKANSysAdmin);
         user.setScreenname(CKANUserName);
-        user.setUuid(CKANUserUuid);
+        //user.setUuid(CKANUserUuid);
         if ((CKANUserEmail != null) && !(CKANUserEmail.isEmpty())) {
             user.setEmail(CKANUserEmail);
         }
