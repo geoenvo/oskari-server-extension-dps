@@ -1,7 +1,7 @@
 package wbidp.oskari.parser;
 
-import java.util.Set;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.List;
 
 import fi.nls.oskari.domain.Role;
 import fi.nls.oskari.domain.User;
@@ -11,7 +11,7 @@ import fi.nls.oskari.domain.User;
  */
 public class CKANOrganization extends Role {
     private String uuid;
-    private Set<User> users = new LinkedHashSet<>();
+    private List<User> users = new ArrayList<>();
     private String displayName;
     private String title;
 
@@ -23,14 +23,15 @@ public class CKANOrganization extends Role {
         this.uuid = uuid;
     }
 
-    public Set<User> getUsers() {
+    public List<User> getUsers() {
         return users;
     }
 
-    public void addUser(User user) {
+    public boolean addUser(User user) {
         if(user != null) {
-            users.add(user);
+            return users.add(user);
         }
+        return false;
     }
 
     public String getDisplayName() {

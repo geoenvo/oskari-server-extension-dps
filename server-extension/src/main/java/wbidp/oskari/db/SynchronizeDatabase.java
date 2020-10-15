@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -127,16 +128,17 @@ public class SynchronizeDatabase {
         ArrayList<CKANOrganization> roles = CKANDataParser.parseJSONtoRoles(CKANOrgsDump);
         String CKANUsersDump = CKANDataParser.readCKANDumpFile(CKANUsersDumpFile);
         ArrayList<CKANUser> users = CKANDataParser.parseJSONToUsers(CKANUsersDump);
+        ArrayList<CKANOrganization> systemRoles = new ArrayList<>();
 
         try {
             if (truncateData) {
                 truncateData(oskariConnection, "oskari_roles");
                 truncateData(oskariConnection, "oskari_role_oskari_user");
-                addRoles(roles);
+                systemRoles = addRoles(roles);
                 truncateData(oskariConnection, "oskari_users");
                 addUsers(users, roles);
             } else {
-                addRoles(roles);
+                systemRoles = addRoles(roles);
                 addUsers(users, roles);
             }
         } catch (Exception e) {
@@ -209,8 +211,10 @@ public class SynchronizeDatabase {
                 roles = userRoles.toArray(roles);
                 User existingUser = userService.getUser(user.getScreenname());
                 if (existingUser == null) {
+                    LOG.debug("USER ROLES: " + Arrays.toString(roles) + " " + user.getScreenname());
                     userService.createCKANUser(user, roles);
                 } else {
+                    LOG.debug("USER ROLES: " + Arrays.toString(roles) + " " + user.getScreenname());
                     user.setId(existingUser.getId());
                     userService.updateUserPassword(user.getScreenname(), user.getCKANPasswordHash());
                     userService.modifyUserwithRoles(user, roles);
@@ -221,10 +225,12 @@ public class SynchronizeDatabase {
         });
     }
 
-    private void addRoles(ArrayList<CKANOrganization> roles) {
+    private ArrayList<CKANOrganization> addRoles(ArrayList<CKANOrganization> roles) {
         DatabaseUserServiceCKAN userService = new DatabaseUserServiceCKAN();
         Set<CKANOrganization> roleSet = new HashSet<CKANOrganization>(roles);
-        userService.storeCKANOrganizationsAsRoles(roleSet);
+        ArrayList<CKANOrganization> systemRoles = new ArrayList<>();
+        systemRoles = new ArrayList<>(userService.storeCKANOrganizationsAsRoles(roleSet));
+        return systemRoles;
     }
 
     private void truncateData(Connection connection, String tableName) throws SQLException {

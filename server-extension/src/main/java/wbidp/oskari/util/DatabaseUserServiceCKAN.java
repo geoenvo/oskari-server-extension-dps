@@ -116,15 +116,19 @@ public class DatabaseUserServiceCKAN extends DatabaseUserService {
         }
     }
 
-    public void storeCKANOrganizationsAsRoles(final Set<CKANOrganization> userRoles) {
+    public Set<CKANOrganization> storeCKANOrganizationsAsRoles(final Set<CKANOrganization> userRoles) {
+        Set<CKANOrganization> updatedRoles = new HashSet<>();
         try {
-            ensureRolesInDB(userRoles);
+            updatedRoles = ensureRolesInDB(userRoles);
         } catch (ServiceException e) {
             log.error(e + "Error storing CKAN organizations as roles to db.");
         }
+        return updatedRoles;
     }
 
     private Set<CKANOrganization> ensureRolesInDB(final Set<CKANOrganization> userRoles) throws ServiceException {
+        // Remove roles that do not exist as organizations in CKAN anymore
+        removeDeletedCKANRoles(userRoles);
         final Role[] systemRoles = getRoles();
         final Set<Role> rolesToInsert = new HashSet<Role>(userRoles.size());
         for(Role userRole : userRoles) {
@@ -137,14 +141,28 @@ public class DatabaseUserServiceCKAN extends DatabaseUserService {
                 }
             }
             if(!found) {
-                rolesToInsert.add(userRole);
+                Role dbRole = insertRole(userRole.getName());
+                userRole.setId(dbRole.getId());
             }
         }
-        // insert missing roles to DB and assign ID
-        for(Role role : rolesToInsert) {
-            Role dbRole = insertRole(role.getName());
-            role.setId(dbRole.getId());
-        }
         return userRoles;
+    }
+
+    private void removeDeletedCKANRoles(Set<CKANOrganization> userRoles) throws ServiceException {
+        Role[] systemRoles = getRoles();
+        for(Role role : systemRoles) {
+            boolean removeRole = true;
+            if (!role.getName().equals("Admin") && !role.getName().equals("User") && !role.getName().equals("Guest")) {
+                for(Role userRole : userRoles) {
+                    if (userRole.getName().equals(role.getName())) {
+                        removeRole = false;
+                        break;
+                    }
+                }
+                if (removeRole) {
+                    roleService.delete(role.getId());
+                }
+            }
+        }
     }
 }

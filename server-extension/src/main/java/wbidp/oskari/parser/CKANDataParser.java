@@ -102,11 +102,15 @@ public class CKANDataParser {
 
         if (CKANOrgJSON.get("users") != null) {
             JSONArray CKANOrgUsersJSON = (JSONArray) CKANOrgJSON.get("users");
+            LOG.debug("Parsing users for organization from json: " + CKANOrgUsersJSON.toJSONString());
             Iterator it = CKANOrgUsersJSON.iterator();
             while (it.hasNext()) {
                 JSONObject CKANUserJSON = (JSONObject) it.next();
                 CKANUser user = getUserFromJSON(CKANUserJSON);
-                org.addUser(user);
+                boolean added = org.addUser(user);
+                if (added) {
+                    LOG.debug("Added user to organization: " + user.getScreenname() + " " + org.getUsers().size());
+                }
             }
         }
 
