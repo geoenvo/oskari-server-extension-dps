@@ -86,31 +86,25 @@ public class CKANLayerDataHandler {
             switch ((format).toLowerCase()) {
                 case "wms":
                     addWMSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization, null, false);
-                    addOrUpdateResourceInfo(resource, connection);
                     break;
                 case "wmts":
                     addWMTSLayers(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization, false);
-                    addOrUpdateResourceInfo(resource, connection);
                     break;
                 case "wfs":
                     addWFSLayers(resource, connection, url, user, pw, currentCrs, isPrivateResource, organization, null, false);
-                    addOrUpdateResourceInfo(resource, connection);
                     break;
                 case "esri rest":
                     // TODO: Add support for Esri REST
                     break;
                 case "shp":
                     addShpFileAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
-                    addOrUpdateResourceInfo(resource, connection);
                     break;
                 case "tif":
                     // CKAN format guesses .tif file not .tiff
                     addGeoTIFFAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
-                    addOrUpdateResourceInfo(resource, connection);
                     break;
                 case "tiff":
                     addGeoTIFFAsLayer(resource, connection, capabilitiesService, url, user, pw, currentCrs, isPrivateResource, organization);
-                    addOrUpdateResourceInfo(resource, connection);
                     break;
                 default:
                     LOG.info(String.format("No match for resource data format (%s).", format));
@@ -185,6 +179,7 @@ public class CKANLayerDataHandler {
         org.json.JSONObject json = GetGtWMSCapabilities.getWMSCapabilities(capabilitiesService, url, user, pw, version,
                 currentCrs);
         addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WMS, isPrivateResource, mainGroupName, organization, overrideName, addForceProxy);
+        addOrUpdateResourceInfo(resource, connection);
     }
 
     private static void addWMTSLayers(JSONObject resource, Connection connection,
@@ -209,6 +204,7 @@ public class CKANLayerDataHandler {
             org.json.JSONObject resultJSON = WMTSCapabilitiesParser.asJSON(wmtsCaps, url, currentCrs);
             JSONHelper.putValue(resultJSON, "xml", capabilitiesXML);
             addLayers(connection, url, user, pw, currentCrs, resultJSON, OskariLayer.TYPE_WMTS, isPrivateResource, mainGroupName, organization, null, addForceProxy);
+            addOrUpdateResourceInfo(resource, connection);
         } catch (IllegalArgumentException | XMLStreamException e) {
             LOG.error("Error while parsing WMTS capabilities. " + e);
         }
@@ -227,6 +223,7 @@ public class CKANLayerDataHandler {
         LOG.debug(String.format("Getting WFS capabilities from %s (version %s)", url, version));
         org.json.JSONObject json = GetGtWFSCapabilities.getWFSCapabilities(url, user, pw, version, currentCrs);
         addLayers(connection, url, user, pw, currentCrs, json, OskariLayer.TYPE_WFS, isPrivateResource, mainGroupName, organization, overrideName, addForceProxy);
+        addOrUpdateResourceInfo(resource, connection);
     }
 
     private static void addLayers(Connection connection, String url, String user, String pw, String currentCrs,
@@ -335,6 +332,7 @@ public class CKANLayerDataHandler {
             }
             addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource,
                     organization, resourceName, addForceProxy);
+            addOrUpdateResourceInfo(resource, connection);
         } catch (Exception e) {
             LOG.error("Error while adding shapefile! " + e);
         }
@@ -434,6 +432,7 @@ public class CKANLayerDataHandler {
             resource.put("name", String.format("%s (local data)", organization.getTitle()));
             addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource,
                     organization, resourceName, addForceProxy);
+            addOrUpdateResourceInfo(resource, connection);
         } catch (Exception e) {
             LOG.error("Error while adding GeoTIFF! " + e);
         }
