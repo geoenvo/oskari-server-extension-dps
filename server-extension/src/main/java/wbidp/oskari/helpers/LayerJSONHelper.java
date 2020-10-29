@@ -47,7 +47,6 @@ public class LayerJSONHelper {
     public static JSONObject getForcedSRSJSON() throws JSONException {
         JSONObject json = new JSONObject();
         JSONArray forcedSRS = new JSONArray();
-        forcedSRS.put("EPSG:3067");
         forcedSRS.put("EPSG:3857");
         json.put("forcedSRS", forcedSRS);
         return json;
