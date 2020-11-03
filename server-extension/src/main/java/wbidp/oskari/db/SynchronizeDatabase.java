@@ -223,6 +223,22 @@ public class SynchronizeDatabase {
                 LOG.error(se, "Error while adding user: " + user.getScreenname());
             }
         });
+        deleteObsoleteUsers(users, userService);
+    }
+
+    private void deleteObsoleteUsers(ArrayList<CKANUser> users, DatabaseUserServiceCKAN userService) throws ServiceException {
+        for(User user : userService.getUsers()) {
+            boolean removeUser = true;
+            for(User userInCKAN : users) {
+                if (userInCKAN.getScreenname().equals(user.getScreenname())) {
+                    removeUser = false;
+                    break;
+                }
+            }
+            if (removeUser) {
+                userService.deleteUser(user.getId());
+            }
+        }
     }
 
     private ArrayList<CKANOrganization> addRoles(ArrayList<CKANOrganization> roles) {
