@@ -21,6 +21,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.ContentType;
@@ -318,6 +319,7 @@ public class CKANLayerDataHandler {
                 filename.substring(0, filename.lastIndexOf('.')))), " ", "_");
             }
 
+            deleteGeoServerStore("datastore", workspaceName, storeName, responseHandler, gsUrl);
             uploadShpFileToGeoServer(workspaceName, storeName, responseHandler, gsUrl, shpFileZip);
             uploadSldToGeoServer(gsUrl, new File(dataFilePath), workspaceName, FileHelper.getFileNameFromZip(dataFilePath, "shp"));
 
@@ -334,20 +336,6 @@ public class CKANLayerDataHandler {
         } catch (Exception e) {
             LOG.error("Error while adding shapefile! " + e);
         }
-    }
-
-    private static void createGeoServerWorkspace(String workspaceName, ResponseHandler<String> responseHandler,
-                                                 String gsUrl) throws IOException {
-        CloseableHttpClient httpclient = HttpClients.createDefault();
-        String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
-        HttpPost httpPost = new HttpPost(String.format("%s/rest/workspaces", gsUrl));
-        httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", workspaceName), ContentType.create("text/xml")));
-        httpPost.setHeader("Authorization", authHeaderValue);
-
-        LOG.info(String.format("Creating GeoServer workspace (request: %s) ", httpPost.getRequestLine()));
-
-        String responseBody = httpclient.execute(httpPost, responseHandler);
-        LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
     }
 
     private static void uploadShpFileToGeoServer(String workspaceName, String storeName, ResponseHandler<String> responseHandler,
@@ -405,6 +393,7 @@ public class CKANLayerDataHandler {
     private static void addGeoTIFFAsLayer(JSONObject resource, Connection connection, CapabilitiesCacheService capabilitiesService,
                                           String url, String user, String pw, String currentCrs, boolean isPrivateResource,
                                           CKANOrganization organization) throws ServiceException {
+        boolean createResourceWorkspaces = PropertyUtil.getOptional("ckan.integration.ckanapi.geotiff.resourceworkspaces", false);
         boolean addForceProxy = PropertyUtil.getOptional("ckan.integration.ckanapi.geotiff.forceproxy", false);
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
@@ -413,6 +402,10 @@ public class CKANLayerDataHandler {
             storeName = ((String) resource.get("name")).replaceAll("[^a-zA-Z0-9]+", "_");
         }
         String resourceName = null;
+
+        if (createResourceWorkspaces) {
+            workspaceName = String.format("%s_%s", workspaceName, storeName);
+        }
 
         try {
             createGeoServerWorkspace(workspaceName, responseHandler, gsUrl);
@@ -424,6 +417,7 @@ public class CKANLayerDataHandler {
             Files.copy(in, Paths.get(dataFilePath), StandardCopyOption.REPLACE_EXISTING);
             File tiffFile = new File(dataFilePath);
 
+            deleteGeoServerStore("coveragestore", workspaceName, storeName, responseHandler, gsUrl);
             uploadGeoTIFFToGeoServer(workspaceName, storeName, responseHandler, gsUrl, tiffFile);
 
             String wmsUrl = String.format("%s/%s/ows?service=WMS", gsUrl, workspaceName);
@@ -447,6 +441,46 @@ public class CKANLayerDataHandler {
         LOG.info(String.format("Uploading GeoTIFF to GeoServer (request: %s) ", httpPut.getRequestLine()));
 
         String responseBody = httpclient.execute(httpPut, responseHandler);
+        LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
+    }
+
+    private static void createGeoServerWorkspace(String workspaceName, ResponseHandler<String> responseHandler,
+                                                 String gsUrl) throws IOException {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
+        HttpPost httpPost = new HttpPost(String.format("%s/rest/workspaces", gsUrl));
+        httpPost.setEntity(new StringEntity(String.format("<workspace><name>%s</name></workspace>", workspaceName), ContentType.create("text/xml")));
+        httpPost.setHeader("Authorization", authHeaderValue);
+
+        LOG.info(String.format("Creating GeoServer workspace (request: %s) ", httpPost.getRequestLine()));
+
+        String responseBody = httpclient.execute(httpPost, responseHandler);
+        LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
+    }
+
+    private static void deleteGeoServerWorkspace(String workspaceName, ResponseHandler<String> responseHandler,
+                                                 String gsUrl) throws IOException {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
+        HttpDelete httpDelete = new HttpDelete(String.format("%s/rest/workspaces/%s?recurse=true", gsUrl, workspaceName));
+        httpDelete.setHeader("Authorization", authHeaderValue);
+
+        LOG.info(String.format("Deleting GeoServer workspace (request: %s) ", httpDelete.getRequestLine()));
+
+        String responseBody = httpclient.execute(httpDelete, responseHandler);
+        LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
+    }
+
+    private static void deleteGeoServerStore(String storeType, String workspaceName, String storeName, ResponseHandler<String> responseHandler,
+                                                 String gsUrl) throws IOException {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        String authHeaderValue = LayerHelper.generateGeoServerAuthHeader();
+        HttpDelete httpDelete = new HttpDelete(String.format("%s/rest/workspaces/%s/%ss/%s?recurse=true", gsUrl, workspaceName, storeType, storeName));
+        httpDelete.setHeader("Authorization", authHeaderValue);
+
+        LOG.info(String.format("Deleting GeoServer %s (request: %s) ", storeType, httpDelete.getRequestLine()));
+
+        String responseBody = httpclient.execute(httpDelete, responseHandler);
         LOG.info(String.format("Got response from GeoServer: %s", responseBody.toString()));
     }
 }
