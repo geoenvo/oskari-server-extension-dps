@@ -4,6 +4,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Arrays;
+
 public class LayerJSONHelper {
 
     public static JSONObject getDefaultLocale(final String fi, final String en, final String sv) throws JSONException {
@@ -48,6 +50,14 @@ public class LayerJSONHelper {
         JSONObject json = new JSONObject();
         JSONArray forcedSRS = new JSONArray();
         forcedSRS.put("EPSG:3857");
+        json.put("forcedSRS", forcedSRS);
+        return json;
+    }
+
+    public static JSONObject getForcedSRSJSON(String[] crsArray) throws JSONException {
+        JSONObject json = new JSONObject();
+        JSONArray forcedSRS = new JSONArray();
+        Arrays.stream(crsArray).forEach(crs -> forcedSRS.put(crs));
         json.put("forcedSRS", forcedSRS);
         return json;
     }

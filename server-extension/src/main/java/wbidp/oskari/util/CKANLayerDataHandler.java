@@ -230,6 +230,7 @@ public class CKANLayerDataHandler {
             if (json.has("title") && !json.getString("title").isEmpty()) {
                 mainGroupName = json.getString("title");
             }
+            String forcedSRS = PropertyUtil.get("ckan.integration.ckanapi.layer.forcedsrs", "EPSG:3857");
             boolean useDefaultLocales = PropertyUtil.getOptional("ckan.integration.ckanapi.layer.defaultlocales", false);
             org.json.JSONObject locale = LayerJSONHelper.getIDPLocale(mainGroupName, mainGroupName);
             if (useDefaultLocales) {
@@ -253,7 +254,7 @@ public class CKANLayerDataHandler {
             }
 
             org.json.JSONObject layerAttributes = new org.json.JSONObject();
-            layerAttributes = LayerJSONHelper.getForcedSRSJSON();
+            layerAttributes = LayerJSONHelper.getForcedSRSJSON(forcedSRS.split(","));
 
             if (addForceProxy) {
                 LayerJSONHelper.addForceProxySetting(layerAttributes);
