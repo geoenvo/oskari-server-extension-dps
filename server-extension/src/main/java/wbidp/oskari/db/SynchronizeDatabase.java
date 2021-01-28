@@ -161,12 +161,12 @@ public class SynchronizeDatabase {
         }
 
         LayerHelper.emptyLayerCapabilitiesCache(oskariConnection);
-        String CKANLayersDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.layers", "/tmp/ckandatasetsdump.jsonl");
-        String CKANLayersDumpFile2 = PropertyUtil.get("ckan.integration.ckanapi.dump.layers.secondary", null);
-        readAndParseDump(oskariConnection, CKANLayersDumpFile);
+        String CKANDatasetsDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.datasets", "/tmp/ckandatasetsdump.jsonl");
+        String CKANDatasetsDumpFile2 = PropertyUtil.get("ckan.integration.ckanapi.dump.datasets.secondary", null);
+        readAndParseDump(oskariConnection, CKANDatasetsDumpFile);
 
-        if (CKANLayersDumpFile2 != null) {
-            readAndParseDump(oskariConnection, CKANLayersDumpFile2);
+        if (CKANDatasetsDumpFile2 != null) {
+            readAndParseDump(oskariConnection, CKANDatasetsDumpFile2);
         }
 
         closeAllDbConnections(oskariConnection);
