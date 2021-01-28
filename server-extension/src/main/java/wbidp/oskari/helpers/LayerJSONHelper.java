@@ -93,6 +93,27 @@ public class LayerJSONHelper {
         return json;
     }
 
+    public static JSONObject getRolePermissionsJSONForPrivateResource(String roleName) throws JSONException {
+        JSONObject json = new JSONObject();
+
+        JSONArray adminRights = new JSONArray();
+        adminRights.put("PUBLISH");
+        adminRights.put("VIEW_LAYER");
+        adminRights.put("VIEW_PUBLISHED");
+        adminRights.put("EDIT_LAYER_CONTENT");
+        adminRights.put("DOWNLOAD");
+        json.put("Admin", adminRights);
+
+        JSONArray roleRights = new JSONArray();
+        roleRights.put("PUBLISH");
+        roleRights.put("VIEW_LAYER");
+        roleRights.put("VIEW_PUBLISHED");
+        roleRights.put("DOWNLOAD");
+        json.put(roleName, roleRights);
+
+        return json;
+    }
+
     public static JSONObject getRolePermissionsJSON() throws JSONException {
         JSONObject json = new JSONObject();
 

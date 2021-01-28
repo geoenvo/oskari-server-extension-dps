@@ -251,7 +251,7 @@ public class CKANLayerDataHandler {
             org.json.JSONObject layerPermissions = LayerJSONHelper.getRolePermissionsJSONForRoleAndAdmin(organization.getName());
             // If resource is marked private in CKAN, only allow admins to see it!
             if (isPrivateResource) {
-                layerPermissions = LayerJSONHelper.getAdminPermissionsJSON();
+                layerPermissions = LayerJSONHelper.getRolePermissionsJSONForPrivateResource(organization.getName());
             }
 
             org.json.JSONObject layerAttributes = new org.json.JSONObject();
