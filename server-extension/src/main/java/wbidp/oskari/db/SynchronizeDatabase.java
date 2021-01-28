@@ -162,10 +162,19 @@ public class SynchronizeDatabase {
 
         LayerHelper.emptyLayerCapabilitiesCache(oskariConnection);
         String CKANLayersDumpFile = PropertyUtil.get("ckan.integration.ckanapi.dump.layers", "/tmp/ckandatasetsdump.jsonl");
-        String CKANLayersDump = CKANDataParser.readCKANDumpFile(CKANLayersDumpFile);
-        CKANDataParser.parseJSONAndAddLayers(CKANLayersDump, oskariConnection);
+        String CKANLayersDumpFile2 = PropertyUtil.get("ckan.integration.ckanapi.dump.layers.secondary", null);
+        readAndParseDump(oskariConnection, CKANLayersDumpFile);
+
+        if (CKANLayersDumpFile2 != null) {
+            readAndParseDump(oskariConnection, CKANLayersDumpFile2);
+        }
 
         closeAllDbConnections(oskariConnection);
+    }
+
+    private void readAndParseDump(Connection oskariConnection, String CKANLayersDumpFile) {
+        String CKANLayersDump = CKANDataParser.readCKANDumpFile(CKANLayersDumpFile);
+        CKANDataParser.parseJSONAndAddLayers(CKANLayersDump, oskariConnection);
     }
 
     private void addUsers(ArrayList<CKANUser> users) throws ServiceException {
