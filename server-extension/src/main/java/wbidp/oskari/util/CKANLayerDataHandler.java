@@ -42,6 +42,7 @@ import javax.xml.stream.XMLStreamException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -292,6 +293,7 @@ public class CKANLayerDataHandler {
         boolean removeSpacesFromShpName = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.removespaces", false);
         boolean createResourceWorkspaces = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.resourceworkspaces", true);
         boolean addForceProxy = PropertyUtil.getOptional("ckan.integration.ckanapi.shp.forceproxy", false);
+        String sysAdminAPIKey = PropertyUtil.get("ckan.integration.ckanapi.sysadmin.apikey", null);
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "shp_store";
@@ -309,7 +311,15 @@ public class CKANLayerDataHandler {
             LOG.info(String.format("Getting shp file from: %s", url));
             String filename = url.substring(url.lastIndexOf("/") + 1);
             String dataFilePath = String.format("%s/%s", dataDestDir, filename);
-            InputStream in = new URL(url).openStream();
+            //InputStream in = new URL(url).openStream();
+
+            URL fileUrl = new URL(url);
+            HttpURLConnection URLConnection = (HttpURLConnection)fileUrl.openConnection();
+            if (isPrivateResource && sysAdminAPIKey != null) {
+                URLConnection.setRequestProperty("X-CKAN-API-Key", sysAdminAPIKey);
+            }
+            InputStream in = URLConnection.getInputStream();
+
             Files.copy(in, Paths.get(dataFilePath), StandardCopyOption.REPLACE_EXISTING);
             File shpFileZip = new File(dataFilePath);
             String resourceName = FileHelper.getFileNameFromZip(dataFilePath, "shp");
@@ -395,6 +405,7 @@ public class CKANLayerDataHandler {
                                           CKANOrganization organization) throws ServiceException {
         boolean createResourceWorkspaces = PropertyUtil.getOptional("ckan.integration.ckanapi.geotiff.resourceworkspaces", false);
         boolean addForceProxy = PropertyUtil.getOptional("ckan.integration.ckanapi.geotiff.forceproxy", false);
+        String sysAdminAPIKey = PropertyUtil.get("ckan.integration.ckanapi.sysadmin.apikey", null);
 
         String workspaceName = organization.getName().replaceAll("[^a-zA-Z0-9]+", "_");
         String storeName = "geotiff_store";
@@ -413,7 +424,15 @@ public class CKANLayerDataHandler {
             LOG.info(String.format("Getting GeoTIFF file from: %s", url));
             String filename = url.substring(url.lastIndexOf("/") + 1);
             String dataFilePath = String.format("%s/%s", dataDestDir, filename);
-            InputStream in = new URL(url).openStream();
+            //InputStream in = new URL(url).openStream();
+
+            URL fileUrl = new URL(url);
+            HttpURLConnection URLConnection = (HttpURLConnection)fileUrl.openConnection();
+            if (isPrivateResource && sysAdminAPIKey != null) {
+                URLConnection.setRequestProperty("X-CKAN-API-Key", sysAdminAPIKey);
+            }
+            InputStream in = URLConnection.getInputStream();
+
             Files.copy(in, Paths.get(dataFilePath), StandardCopyOption.REPLACE_EXISTING);
             File tiffFile = new File(dataFilePath);
 
