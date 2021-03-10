@@ -8,18 +8,26 @@
         <artifactId>oskari-extension</artifactId>
         <version>1.1</version>
     </parent>
-    <artifactId>app-resources</artifactId>
-    <packaging>jar</packaging>
-    <name>Resources for application</name>
+    <artifactId>server-extension</artifactId>
+
     <dependencies>
+
         <dependency>
-            <groupId>fi.nls.oskari</groupId>
-            <artifactId>content-resources</artifactId>
+            <groupId>fi.nls.oskari.service</groupId>
+            <artifactId>oskari-control-base</artifactId>
         </dependency>
-		<dependency>
+
+        <dependency>
             <groupId>fi.nls.oskari</groupId>
             <artifactId>download-basket</artifactId>
             <version>${oskari.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 </project>

@@ -3,11 +3,11 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.oskari.demo</groupId>
-    <artifactId>server-extension</artifactId>
-    <version>1.2.1</version>
+    <groupId>wbidp.oskari</groupId>
+    <artifactId>oskari-extension</artifactId>
+    <version>1.1</version>
     <packaging>pom</packaging>
-    <name>demo.oskari.org</name>
+    <name>WB IDP - Integrated Data Portal</name>
 
     <properties>
         <oskari.version>1.55.1</oskari.version>
@@ -25,6 +25,13 @@
             <id>oskari_org_snapshot</id>
             <name>Oskari.org snapshot repository</name>
             <url>https://oskari.org/nexus/content/repositories/snapshots/</url>
+        </repository>
+        <repository>
+            <id>osgeo</id>
+            <name>OSGeo Release Repository</name>
+            <url>https://repo.osgeo.org/repository/release/</url>
+            <snapshots><enabled>false</enabled></snapshots>
+            <releases><enabled>true</enabled></releases>
         </repository>
     </repositories>
 
@@ -64,7 +71,7 @@
 
     <modules>
         <module>app-resources</module>
-        <module>app-specific-code</module>
+        <module>server-extension</module>
         <module>webapp-map</module>
     </modules>
 
