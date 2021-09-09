@@ -113,6 +113,69 @@ public class CKANLayerDataHandler {
         }
     }
 
+    /**
+     * Update the `wfs_url` and `wms_url` extra fields of the layer's associated
+     * resource via the `resource_patch` API call in CKAN.
+     * 
+     * @param resource a CKAN resource as JSON object (each object of the resources array in /api/action/package_show CKAN API call).
+     * @param wfsUrl the WMS URL of layer in GeoServer.
+     * @param wmsUrl the WFS URL of layer in GeoServer.
+     * @param apiKey the CKAN sysadmin API key to use for the API call.
+     */
+    private static void updateUrlToCKAN(JSONObject resource, String wfsUrl, String wmsUrl, String apiKey) {
+        try {
+            String uuid = (String) resource.get("id");
+            String url = (String) resource.get("url");
+            // get CKAN domain from resource URL
+            URL resourceUrl = new URL(url);
+            String protocol = resourceUrl.getProtocol();
+            String authority = resourceUrl.getAuthority();
+            String resourcePatchEndpoint = "api/action/resource_patch";
+            String apiUrl = String.format("%s://%s/%s", protocol, authority, resourcePatchEndpoint);
+            LOG.info("Start Update URL to CKAN");
+            LOG.info(String.format("CKAN Resource UUID: %s", uuid));
+            LOG.info(String.format("CKAN Resource URL: %s", url));
+            LOG.info(String.format("CKAN API URL: %s", apiUrl));
+            LOG.info(String.format("GeoServer WFS URL: %s", wfsUrl));
+            LOG.info(String.format("GeoServer WMS URL: %s", wmsUrl));
+            // example request with curl
+            // curl -X POST http://ckan.url/api/action/resource_patch -H "Authorization: the-sysadmin-api-key" -d '{"id": "the-resource-file-uuid", "wms_url": "http://the.wms.url", "wfs_url": "http://the.wfs.url"}'
+            // only make API call API key is provided and if WFS URL or WMS URL is set
+            if (apiKey != null && (wfsUrl != null || wmsUrl != null)) {
+                CloseableHttpClient httpclient = HttpClients.createDefault();
+                HttpPost httpPost = new HttpPost(apiUrl);
+                JSONObject json = new JSONObject();
+                json.put("id", uuid);
+                if (wfsUrl != null) {
+                    json.put("wfs_url", wfsUrl);
+                }
+                if (wmsUrl != null) {
+                    json.put("wms_url", wmsUrl);
+                }
+                StringEntity params = new StringEntity(json.toString());
+                httpPost.setEntity(params);
+                httpPost.setHeader("content-type", "application/json");
+                httpPost.setHeader("Authorization", apiKey);
+                LOG.info(String.format("Update URL to CKAN (request: %s) ", httpPost.getRequestLine()));
+                httpclient.execute(httpPost);
+            } else {
+                LOG.info("Skip updating URL to CKAN due to the following reasons:");
+                if (apiKey == null) {
+                    LOG.info("CKAN API Key not provided.");
+                }
+                if (wfsUrl == null) {
+                    LOG.info("GeoServer WFS URL not provided.");
+                }
+                if (wmsUrl == null) {
+                    LOG.info("GeoServer WMS URL not provided.");
+                }
+            }
+            LOG.info("End Update URL to CKAN");
+        } catch (Exception e) {
+            LOG.error("Error when updating URL to CKAN! " + e);
+        }
+    }
+
     private static boolean checkResourceStatus(JSONObject resource, Connection connection) {
         boolean updateNeeded = false;
         String uuid = (String) resource.get("id");
@@ -339,9 +402,11 @@ public class CKANLayerDataHandler {
                 LOG.debug("Publishing uploaded shp also as WFS layer.");
                 String wfsUrl = String.format("%s/%s/wfs", gsUrl, workspaceName);
                 addWFSLayers(resource, connection, wfsUrl, user, pw, currentCrs, isPrivateResource, organization, resourceName, false);
+                updateUrlToCKAN(resource, wfsUrl, null, sysAdminAPIKey);
             }
             addWMSLayers(resource, connection, capabilitiesService, wmsUrl, user, pw, currentCrs, isPrivateResource,
                     organization, resourceName, addForceProxy);
+            updateUrlToCKAN(resource, null, wmsUrl, sysAdminAPIKey);
             addOrUpdateResourceInfo(resource, connection);
         } catch (Exception e) {
             LOG.error("Error while adding shapefile! " + e);
